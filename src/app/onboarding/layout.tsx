@@ -3,7 +3,6 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { Progress } from "@/components/ui/progress";
 
 export default function OnboardingLayout({
   children,

@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import { Event } from "@/types/event";
-import { Recommendation } from "@/types/recommendation";
 import { ShoppingItem, ShoppingFilters, ShoppingSortBy, PurchaseStatus } from "@/types/shopping";
 import { eventService, recommendationService } from "@/lib/firebase/firestore";
 import {
@@ -27,7 +26,6 @@ import {
   Heart,
   ExternalLink,
   Check,
-  X,
   AlertCircle,
   ChevronRight,
   SlidersHorizontal,

@@ -109,7 +109,7 @@ export function BodyMeasurementsStep({ initialData, onComplete, onBack }: Props)
   const [waist, setWaist] = useState(initialData.measurements?.waist || 0);
   const [hips, setHips] = useState(initialData.measurements?.hips || 0);
   const [inseam, setInseam] = useState(initialData.measurements?.inseam || 0);
-  const [shoulderWidth, setShoulderWidth] = useState(initialData.measurements?.shoulderWidth || 0);
+  const [shoulderWidth] = useState(initialData.measurements?.shoulderWidth || 0);
 
   // Body shape
   const [bodyShape, setBodyShape] = useState<BodyMeasurementsData["bodyShape"]>(

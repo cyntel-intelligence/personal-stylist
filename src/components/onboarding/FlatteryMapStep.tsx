@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Sparkles, Check } from "lucide-react";
+import { Sparkles } from "lucide-react";
 
 type FlatteryMapData = {
   flatteryMap?: {

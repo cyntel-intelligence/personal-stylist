@@ -6,12 +6,13 @@ import {
   recommendationAdminService as recommendationService
 } from "@/lib/firebase/firestore-admin";
 import { claudeClient, CLAUDE_MODELS } from "@/lib/ai/claude-client";
-import { buildRecommendationPrompt } from "@/lib/ai/prompts/recommendation";
+import { buildSearchCriteriaPrompt, parseAIResponse, type AIRecommendationOutput } from "@/lib/ai/prompts/recommendation-v2";
+import { searchProductsByCriteria, type ProductSearchResult } from "@/lib/api/product-search";
 import { verifyAuth, verifyOwnership } from "@/lib/middleware/auth";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/middleware/rateLimit";
 import { GenerateRecommendationRequestSchema } from "@/lib/validation/schemas";
 import { trackAPIUsage, AIOperationType, checkCostThreshold } from "@/lib/services/usage-tracking";
-import type { OutfitItemWithAlternatives, ItemCategory } from "@/types/recommendation";
+import type { OutfitItemWithAlternatives, ItemCategory, OutfitItem } from "@/types/recommendation";
 
 // Helper to calculate minimum price from alternatives
 function calculateMinPrice(items: OutfitItemWithAlternatives[]): number {
@@ -29,6 +30,30 @@ function calculateMaxPrice(items: OutfitItemWithAlternatives[]): number {
     const maxPrice = Math.max(...allOptions.map(opt => opt.price || 0));
     return sum + maxPrice;
   }, 0);
+}
+
+// Convert ProductSearchResult to OutfitItem
+function productToOutfitItem(product: ProductSearchResult, reason?: string): OutfitItem {
+  return {
+    isClosetItem: false,
+    productName: product.name,
+    imageUrl: product.imageUrl,
+    price: product.price,
+    retailer: product.retailer,
+    productLink: product.productUrl,
+    reason: reason || `${product.brand} - ${product.name}`,
+  };
+}
+
+// Convert closet item to OutfitItem
+function closetItemToOutfitItem(item: any, reason: string): OutfitItem {
+  return {
+    isClosetItem: true,
+    closetItemId: item.id,
+    productName: `${item.brand || ''} ${item.subcategory || item.category}`.trim(),
+    imageUrl: item.images?.thumbnail || item.images?.original || '',
+    reason,
+  };
 }
 
 export async function POST(request: NextRequest) {
@@ -129,19 +154,15 @@ export async function POST(request: NextRequest) {
           return true;
         });
 
-    // Mock product catalog (in Phase 5, this would come from affiliate APIs)
-    const mockProducts: any[] = [];
-
-    // Build AI prompt
-    const prompt = buildRecommendationPrompt(
+    // Build AI prompt for search criteria (not fake products)
+    const prompt = buildSearchCriteriaPrompt(
       event as any,
       userProfile as any,
-      availableClosetItems as any,
-      mockProducts
+      availableClosetItems as any
     );
 
     // 8. CALL CLAUDE API WITH TIMEOUT
-    console.log("Calling Claude API for recommendations...");
+    console.log("Calling Claude API for search criteria...");
     let response: string;
     let tokenUsage = { inputTokens: 0, outputTokens: 0 };
 
@@ -150,16 +171,16 @@ export async function POST(request: NextRequest) {
       const aiCallPromise = claudeClient.sendMessage(
         prompt,
         CLAUDE_MODELS.SONNET,
-        6000 // Allow sufficient tokens for 3 complete outfits with shopping links
+        4000 // Search criteria needs less tokens than full product descriptions
       );
 
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('AI request timeout')), 150000) // 150 second timeout
+        setTimeout(() => reject(new Error('AI request timeout')), 120000) // 120 second timeout
       );
 
       response = await Promise.race([aiCallPromise, timeoutPromise]) as string;
 
-      // Estimate token usage (will be replaced with actual usage from API response)
+      // Estimate token usage
       tokenUsage = {
         inputTokens: claudeClient.estimateTokens(prompt),
         outputTokens: claudeClient.estimateTokens(response),
@@ -188,51 +209,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 9. PARSE RESPONSE
-    let aiResponse: any;
-    try {
-      // Try to extract JSON from markdown code blocks first
-      const jsonBlockMatch = response.match(/```json\s*\n?([\s\S]*?)\n?```/);
-      let jsonString;
+    // 9. PARSE AI RESPONSE (search criteria)
+    const aiOutput = parseAIResponse(response);
 
-      if (jsonBlockMatch) {
-        jsonString = jsonBlockMatch[1].trim();
-      } else {
-        // If no code block, try to find a JSON array or object
-        const arrayMatch = response.match(/\[[\s\S]*\]/);
-        const objectMatch = response.match(/\{[\s\S]*\}/);
-
-        if (arrayMatch) {
-          jsonString = arrayMatch[0];
-        } else if (objectMatch) {
-          jsonString = objectMatch[0];
-        } else {
-          jsonString = response.trim();
-        }
-      }
-
-      const parsed = JSON.parse(jsonString);
-
-      // Check if this is the new format (single object with outfitItems) or old format (array of 3 outfits)
-      if (parsed.outfitItems && Array.isArray(parsed.outfitItems)) {
-        // New format
-        aiResponse = parsed;
-      } else if (Array.isArray(parsed)) {
-        // Old format - wrap it for backward compatibility
-        aiResponse = { legacyFormat: true, recommendations: parsed };
-      } else {
-        // Single recommendation object (old format)
-        aiResponse = { legacyFormat: true, recommendations: [parsed] };
-      }
-    } catch (parseError) {
-      console.error("Failed to parse AI response:", parseError);
+    if (!aiOutput) {
+      console.error("Failed to parse AI response");
       console.log("Raw response:", response.substring(0, 500));
 
-      await eventService.updateEvent(eventId, {
-        status: "planning",
-      });
+      await eventService.updateEvent(eventId, { status: "planning" });
 
-      // Track failed parsing
       await trackAPIUsage(
         userId,
         AIOperationType.OUTFIT_RECOMMENDATION,
@@ -246,6 +231,65 @@ export async function POST(request: NextRequest) {
         { error: "Failed to parse AI response", details: "Invalid response format" },
         { status: 500 }
       );
+    }
+
+    // 10. SEARCH FOR REAL PRODUCTS
+    console.log("Searching for real products...");
+    const outfitItems: OutfitItemWithAlternatives[] = [];
+
+    // First, add closet items recommended by AI
+    const closetItemMap = new Map(availableClosetItems.map(item => [item.id, item]));
+
+    for (const closetRec of aiOutput.closetItemsToUse || []) {
+      const closetItem = closetItemMap.get(closetRec.itemId);
+      if (closetItem) {
+        outfitItems.push({
+          category: closetRec.category,
+          primary: closetItemToOutfitItem(closetItem, closetRec.reason),
+          alternatives: [], // Closet items don't have alternatives
+          reason: closetRec.reason,
+        });
+      }
+    }
+
+    // Then search for products to purchase
+    for (const searchItem of aiOutput.searchCriteria || []) {
+      // Skip if we already have this category from closet
+      if (outfitItems.some(item => item.category === searchItem.category)) {
+        continue;
+      }
+
+      try {
+        const products = await searchProductsByCriteria(searchItem.criteria);
+
+        if (products.length > 0) {
+          // Primary is first result, alternatives are next 1-2
+          outfitItems.push({
+            category: searchItem.category,
+            primary: productToOutfitItem(products[0], searchItem.reason),
+            alternatives: products.slice(1, 3).map(p => productToOutfitItem(p)),
+            reason: searchItem.reason,
+          });
+        } else {
+          // No products found - create placeholder
+          console.warn(`No products found for category ${searchItem.category}`);
+          outfitItems.push({
+            category: searchItem.category,
+            primary: {
+              isClosetItem: false,
+              productName: `${searchItem.criteria.style} ${searchItem.category}`,
+              imageUrl: '',
+              price: (searchItem.criteria.priceRange.min + searchItem.criteria.priceRange.max) / 2,
+              reason: searchItem.reason + " (No exact match found - try searching manually)",
+            },
+            alternatives: [],
+            reason: searchItem.reason,
+          });
+        }
+      } catch (searchError) {
+        console.error(`Error searching for ${searchItem.category}:`, searchError);
+        // Continue with other categories
+      }
     }
 
     // Helper to remove undefined values from an object
@@ -263,159 +307,46 @@ export async function POST(request: NextRequest) {
       return obj;
     };
 
-    // Helper to map item from AI response
-    const mapOutfitItem = (item: any) => ({
-      isClosetItem: item?.isClosetItem || false,
-      closetItemId: item?.itemId,
-      productName: item?.productName || item?.description || "Item",
-      imageUrl: item?.imageUrl || "",
-      price: item?.estimatedPrice || item?.price || 0,
-      retailer: item?.retailer,
-      productLink: item?.productLink,
-      description: item?.reason,
-    });
-
     // Save recommendations to Firestore
     const recommendationIds: string[] = [];
 
-    // Handle new format with alternatives
-    if (!aiResponse.legacyFormat && aiResponse.outfitItems) {
-      console.log("Processing new format with alternatives");
+    // Calculate pricing from outfit items
+    const primaryTotal = outfitItems.reduce((sum, item) => sum + (item.primary.price || 0), 0);
+    const dynamicBreakdown: Record<ItemCategory, number> = {} as Record<ItemCategory, number>;
+    outfitItems.forEach(item => {
+      dynamicBreakdown[item.category] = item.primary.price || 0;
+    });
 
-      // Map outfit items with alternatives
-      const outfitItems: OutfitItemWithAlternatives[] = aiResponse.outfitItems.map((item: any) => ({
-        category: item.category as ItemCategory,
-        primary: mapOutfitItem(item.primary),
-        alternatives: (item.alternatives || []).map(mapOutfitItem),
-        reason: item.categoryReason || "",
-      }));
+    const minTotal = calculateMinPrice(outfitItems);
+    const maxTotal = calculateMaxPrice(outfitItems);
 
-      // Calculate pricing
-      const primaryTotal = outfitItems.reduce((sum, item) => sum + (item.primary.price || 0), 0);
-      const dynamicBreakdown: Record<ItemCategory, number> = {} as Record<ItemCategory, number>;
-      outfitItems.forEach(item => {
-        dynamicBreakdown[item.category] = item.primary.price || 0;
-      });
+    const recData = removeUndefined({
+      eventId,
+      userId,
+      outfit: {
+        items: outfitItems,
+        hasDressOption: aiOutput.hasDressOption || false,
+        hasSeparatesOption: aiOutput.hasSeparatesOption || false,
+      },
+      aiReasoning: {
+        flatteryNotes: aiOutput.overallReasoning?.flatteryNotes || [],
+        dressCodeFit: aiOutput.overallReasoning?.dressCodeFit || "",
+        styleMatch: aiOutput.overallReasoning?.styleMatch || "",
+        weatherAppropriate: aiOutput.overallReasoning?.weatherAppropriate || "",
+        confidenceScore: aiOutput.overallReasoning?.confidenceScore || 75,
+      },
+      pricing: {
+        primaryTotal,
+        dynamicBreakdown,
+        minTotal,
+        maxTotal,
+      },
+      generationMethod: "ai-full",
+      version: 3, // Version 3 for real product search
+    });
 
-      const minTotal = calculateMinPrice(outfitItems);
-      const maxTotal = calculateMaxPrice(outfitItems);
-
-      const recData = removeUndefined({
-        eventId,
-        userId,
-        outfit: {
-          items: outfitItems,
-          hasDressOption: aiResponse.hasDressOption || false,
-          hasSeparatesOption: aiResponse.hasSeparatesOption || false,
-        },
-        aiReasoning: {
-          flatteryNotes: aiResponse.overallReasoning?.flatteryNotes || [],
-          dressCodeFit: aiResponse.overallReasoning?.dressCodeFit || "",
-          styleMatch: aiResponse.overallReasoning?.styleMatch || "",
-          weatherAppropriate: aiResponse.overallReasoning?.weatherAppropriate || "",
-          confidenceScore: aiResponse.overallReasoning?.confidenceScore || 75,
-        },
-        pricing: {
-          primaryTotal,
-          dynamicBreakdown,
-          minTotal,
-          maxTotal,
-        },
-        generationMethod: "ai-full",
-        version: 2, // Version 2 for new format
-      });
-
-      const recId = await recommendationService.createRecommendation(recData as any);
-      recommendationIds.push(recId);
-    } else {
-      // Handle legacy format (array of 3 recommendations)
-      console.log("Processing legacy format (3 separate outfits)");
-      const recommendations = aiResponse.recommendations || [];
-
-      for (const rec of recommendations) {
-        // Log warnings for purchase items missing shopping data
-        if (!rec.dress?.isClosetItem && (!rec.dress?.productLink || !rec.dress?.retailer)) {
-          console.warn(`Recommendation ${rec.outfitNumber}: Dress missing productLink or retailer`);
-        }
-        if (!rec.shoes?.isClosetItem && (!rec.shoes?.productLink || !rec.shoes?.retailer)) {
-          console.warn(`Recommendation ${rec.outfitNumber}: Shoes missing productLink or retailer`);
-        }
-        if (!rec.bag?.isClosetItem && (!rec.bag?.productLink || !rec.bag?.retailer)) {
-          console.warn(`Recommendation ${rec.outfitNumber}: Bag missing productLink or retailer`);
-        }
-
-        const recData = removeUndefined({
-          eventId,
-          userId,
-          outfit: {
-            dress: {
-              isClosetItem: rec.dress?.isClosetItem || false,
-              closetItemId: rec.dress?.itemId,
-              productName: rec.dress?.productName || rec.dress?.description || "Dress",
-              imageUrl: rec.dress?.imageUrl || "",
-              price: rec.dress?.estimatedPrice || rec.dress?.price || 0,
-              retailer: rec.dress?.retailer,
-              productLink: rec.dress?.productLink,
-            },
-            shoes: {
-              isClosetItem: rec.shoes?.isClosetItem || false,
-              closetItemId: rec.shoes?.itemId,
-              productName: rec.shoes?.productName || rec.shoes?.description || "Shoes",
-              imageUrl: rec.shoes?.imageUrl || "",
-              price: rec.shoes?.estimatedPrice || rec.shoes?.price || 0,
-              retailer: rec.shoes?.retailer,
-              productLink: rec.shoes?.productLink,
-            },
-            bag: {
-              isClosetItem: rec.bag?.isClosetItem || false,
-              closetItemId: rec.bag?.itemId,
-              productName: rec.bag?.productName || rec.bag?.description || "Bag",
-              imageUrl: rec.bag?.imageUrl || "",
-              price: rec.bag?.estimatedPrice || rec.bag?.price || 0,
-              retailer: rec.bag?.retailer,
-              productLink: rec.bag?.productLink,
-            },
-            jewelry: {
-              items: (rec.jewelry || []).map((j: any) => ({
-                isClosetItem: false,
-                productName: j.description || j.productName || j.type || "Jewelry",
-                imageUrl: "",
-                price: j.estimatedPrice || j.price || 0,
-                retailer: j.retailer,
-                productLink: j.productLink,
-              })),
-            },
-            outerwear: rec.outerwear?.needed ? {
-              isClosetItem: rec.outerwear.isClosetItem || false,
-              closetItemId: rec.outerwear.itemId,
-              productName: rec.outerwear.productName || rec.outerwear.description || "Outerwear",
-              imageUrl: rec.outerwear.imageUrl || "",
-              price: rec.outerwear.estimatedPrice || rec.outerwear.price || 0,
-              retailer: rec.outerwear.retailer,
-              productLink: rec.outerwear.productLink,
-            } : undefined,
-          },
-          aiReasoning: {
-            flatteryNotes: rec.flatteryNotes || rec.reasoning?.flatteryNotes || [],
-            dressCodeFit: rec.dressCodeFit || rec.reasoning?.dressCodeFit || "",
-            styleMatch: rec.styleMatch || rec.reasoning?.styleMatch || "",
-            weatherAppropriate: rec.weatherAppropriate || rec.reasoning?.weatherAppropriate || "",
-            confidenceScore: rec.confidenceScore || rec.reasoning?.confidenceScore || 75,
-          },
-          pricing: {
-            totalPrice: rec.totalEstimatedPrice || 0,
-            breakdown: {},
-            hasLowerPriceAlternatives: false,
-            hasHigherPriceAlternatives: false,
-          },
-          generationMethod: "ai-full",
-          version: 1, // Version 1 for legacy format
-        });
-
-        const recId = await recommendationService.createRecommendation(recData as any);
-        recommendationIds.push(recId);
-      }
-    }
+    const recId = await recommendationService.createRecommendation(recData as any);
+    recommendationIds.push(recId);
 
     // 10. UPDATE EVENT WITH RECOMMENDATIONS
     await eventService.updateEvent(eventId, {

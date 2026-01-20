@@ -4,12 +4,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useEffect, useState } from "react";
-import { closetService, eventService } from "@/lib/firebase/firestore";
+import { closetService, eventService, recommendationService } from "@/lib/firebase/firestore";
 import Link from "next/link";
 
 interface DashboardStats {
   closetItems: number;
-  eventsPlanned: number;
+  upcomingEvents: number;
   recommendations: number;
 }
 
@@ -17,7 +17,7 @@ export default function DashboardPage() {
   const { user, userProfile, signOut } = useAuth();
   const [stats, setStats] = useState<DashboardStats>({
     closetItems: 0,
-    eventsPlanned: 0,
+    upcomingEvents: 0,
     recommendations: 0,
   });
   const [loading, setLoading] = useState(true);
@@ -27,20 +27,23 @@ export default function DashboardPage() {
       if (!user?.uid) return;
 
       try {
-        // Fetch closet items and events in parallel
-        const [closetItems, events] = await Promise.all([
+        // Fetch closet items, events, and recommendations in parallel
+        const [closetItems, events, recommendationCount] = await Promise.all([
           closetService.getUserCloset(user.uid),
           eventService.getUserEvents(user.uid),
+          recommendationService.getUserRecommendationCount(user.uid),
         ]);
 
-        // Count total recommendations from all events
-        const recommendationCount = events.reduce((count, event) => {
-          return count + (event.recommendationIds?.length || 0);
-        }, 0);
+        // Count upcoming events (events with dates in the future)
+        const now = new Date();
+        const upcomingEvents = events.filter(event => {
+          const eventDate = event.dateTime?.toDate?.() || new Date(0);
+          return eventDate > now;
+        });
 
         setStats({
           closetItems: closetItems.length,
-          eventsPlanned: events.length,
+          upcomingEvents: upcomingEvents.length,
           recommendations: recommendationCount,
         });
       } catch (error) {
@@ -131,11 +134,11 @@ export default function DashboardPage() {
             <Card className="bg-card border-border shadow-luxe text-center py-2">
               <CardHeader className="pb-2">
                 <CardTitle className="text-4xl font-serif text-gradient-luxe">
-                  {loading ? "..." : stats.eventsPlanned}
+                  {loading ? "..." : stats.upcomingEvents}
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm uppercase tracking-wider text-muted-foreground">Events Planned</p>
+                <p className="text-sm uppercase tracking-wider text-muted-foreground">Upcoming Events</p>
               </CardContent>
             </Card>
             <Card className="bg-card border-border shadow-luxe text-center py-2">

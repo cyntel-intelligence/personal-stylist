@@ -64,7 +64,7 @@ export default function ClosetUploadPage() {
       }
 
       // Create closet item in Firestore
-      const itemId = await closetService.createItem({
+      await closetService.createItem({
         userId: user.uid,
         category: data.category,
         subcategory: data.subcategory,
@@ -104,7 +104,7 @@ export default function ClosetUploadPage() {
           <CardHeader>
             <CardTitle>Add Item to Closet</CardTitle>
             <CardDescription>
-              Upload a photo and we'll analyze it to help create perfect outfit recommendations
+              {"Upload a photo and we'll analyze it to help create perfect outfit recommendations"}
             </CardDescription>
           </CardHeader>
           <CardContent>

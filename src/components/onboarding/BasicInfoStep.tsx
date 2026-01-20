@@ -283,7 +283,7 @@ export function BasicInfoStep({ initialData, onComplete, onBack }: Props) {
               <SelectContent>
                 <SelectItem value="never">Never - I prefer not to wear it</SelectItem>
                 <SelectItem value="sometimes">Sometimes - For special occasions</SelectItem>
-                <SelectItem value="always">Always - I'm comfortable with it</SelectItem>
+                <SelectItem value="always">{"Always - I'm comfortable with it"}</SelectItem>
               </SelectContent>
             </Select>
           </div>

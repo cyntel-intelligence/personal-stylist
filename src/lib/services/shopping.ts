@@ -5,12 +5,9 @@ import {
   ShoppingStats,
   RetailerGroup,
   EventShoppingSummary,
-  PurchaseStatus,
-  Purchase,
-  PurchaseUpdateRequest
 } from "@/types/shopping";
 import { Event } from "@/types/event";
-import { Recommendation, ItemCategory, OutfitItem } from "@/types/recommendation";
+import { Recommendation, ItemCategory } from "@/types/recommendation";
 import { Timestamp } from "firebase/firestore";
 
 /**

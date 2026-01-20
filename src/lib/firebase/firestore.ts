@@ -267,6 +267,18 @@ export const recommendationService = {
     ]);
   },
 
+  async getUserRecommendations(userId: string): Promise<Recommendation[]> {
+    return firestoreService.queryDocuments<Recommendation>("recommendations", [
+      where("userId", "==", userId),
+      orderBy("createdAt", "desc"),
+    ]);
+  },
+
+  async getUserRecommendationCount(userId: string): Promise<number> {
+    const recommendations = await this.getUserRecommendations(userId);
+    return recommendations.length;
+  },
+
   async createRecommendation(
     recData: Omit<Recommendation, "id" | "createdAt">
   ): Promise<string> {

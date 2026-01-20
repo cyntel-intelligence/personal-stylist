@@ -48,7 +48,7 @@ export default function NewEventPage() {
           <CardHeader>
             <CardTitle>Create New Event</CardTitle>
             <CardDescription>
-              Tell us about your upcoming event and we'll help you find the perfect outfit
+              {"Tell us about your upcoming event and we'll help you find the perfect outfit"}
             </CardDescription>
           </CardHeader>
           <CardContent>

@@ -4,8 +4,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -196,7 +196,7 @@ export function EventForm({ initialData, onSubmit, onCancel, loading }: Props) {
       <div className="space-y-4">
         <div>
           <h3 className="text-lg font-semibold">Dress Code</h3>
-          <p className="text-sm text-gray-600">What's the expected attire?</p>
+          <p className="text-sm text-gray-600">{"What's the expected attire?"}</p>
         </div>
 
         <Select value={dressCode} onValueChange={setDressCode} required>
@@ -281,7 +281,7 @@ export function EventForm({ initialData, onSubmit, onCancel, loading }: Props) {
       <div className="space-y-4">
         <div>
           <h3 className="text-lg font-semibold">Your Role (Optional)</h3>
-          <p className="text-sm text-gray-600">What's your role at this event?</p>
+          <p className="text-sm text-gray-600">{"What's your role at this event?"}</p>
         </div>
 
         <Select value={userRole} onValueChange={setUserRole}>

@@ -5,30 +5,59 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import { Event } from "@/types/event";
-import { Recommendation, OutfitItemWithAlternatives, OutfitItem, ItemCategory } from "@/types/recommendation";
+import { Recommendation, OutfitItemWithAlternatives, ItemCategory } from "@/types/recommendation";
 import { eventService, recommendationService } from "@/lib/firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Sparkles, ExternalLink, RefreshCw } from "lucide-react";
+import { ArrowLeft, Sparkles, ExternalLink, RefreshCw, Filter, SlidersHorizontal, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { getCategoryIcon, getProductImageUrl, getCategoryColors } from "@/lib/utils/product-images";
 
-// Helper to get emoji for category
-function getCategoryIcon(category: ItemCategory): string {
-  const icons: Record<ItemCategory, string> = {
-    dress: '👗',
-    tops: '👚',
-    bottoms: '👖',
-    jackets: '🧥',
-    shoes: '👠',
-    bags: '👜',
-    jewelry: '💎',
-    accessories: '🎀',
-    outerwear: '🧥',
-  };
-  return icons[category] || '✨';
+// Product Image component with fallback handling
+function ProductImage({
+  imageUrl,
+  category,
+  productName,
+}: {
+  imageUrl?: string;
+  category: ItemCategory;
+  productName: string;
+}) {
+  const [hasError, setHasError] = useState(false);
+  const { url, isPlaceholder } = getProductImageUrl(imageUrl, category, 300, 400);
+  const colors = getCategoryColors(category);
+
+  // If the actual image fails to load, show placeholder
+  if (hasError || isPlaceholder) {
+    return (
+      <div
+        className="relative w-full h-40 mb-3 rounded-lg overflow-hidden flex flex-col items-center justify-center"
+        style={{ backgroundColor: `#${colors.bg}` }}
+      >
+        <span className="text-4xl mb-2">{getCategoryIcon(category)}</span>
+        <span
+          className="text-xs font-medium uppercase tracking-wider"
+          style={{ color: `#${colors.text}` }}
+        >
+          {productName.length > 25 ? productName.substring(0, 25) + "..." : productName}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative w-full h-40 mb-3 rounded-lg overflow-hidden bg-gray-100">
+      <img
+        src={url}
+        alt={productName}
+        className="w-full h-full object-cover"
+        onError={() => setHasError(true)}
+      />
+    </div>
+  );
 }
 
 export default function RecommendationsPage() {
@@ -43,6 +72,17 @@ export default function RecommendationsPage() {
   const [selectedMode, setSelectedMode] = useState<'dress' | 'separates'>('dress');
   const [selectedItems, setSelectedItems] = useState<Partial<Record<ItemCategory, number>>>({});
   const [generating, setGenerating] = useState(false);
+
+  // Filter state
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState({
+    maxPrice: undefined as number | undefined,
+    minPrice: undefined as number | undefined,
+    showClosetItems: true,
+    showPurchaseItems: true,
+    categories: [] as ItemCategory[],
+  });
+  const [sortBy, setSortBy] = useState<'default' | 'price-asc' | 'price-desc'>('default');
 
   useEffect(() => {
     if (!user || !eventId) return;
@@ -114,6 +154,93 @@ export default function RecommendationsPage() {
       return sum + (selectedOption.price || 0);
     }, 0);
   }, [recommendation, selectedItems, selectedMode]);
+
+  // Filter and sort items
+  const filteredItems = useMemo(() => {
+    if (!recommendation?.outfit.items) return [];
+
+    let items = recommendation.outfit.items.filter(item => {
+      // Filter by dress/separates mode
+      if (selectedMode === 'dress' && (item.category === 'tops' || item.category === 'bottoms')) {
+        return false;
+      }
+      if (selectedMode === 'separates' && item.category === 'dress') {
+        return false;
+      }
+
+      // Filter by category if specific categories are selected
+      if (filters.categories.length > 0 && !filters.categories.includes(item.category)) {
+        return false;
+      }
+
+      // Get the selected option for this category
+      const selectedIndex = selectedItems[item.category] || 0;
+      const allOptions = [item.primary, ...item.alternatives];
+      const selectedOption = allOptions[selectedIndex];
+
+      // Filter by closet/purchase items
+      if (!filters.showClosetItems && selectedOption.isClosetItem) {
+        return false;
+      }
+      if (!filters.showPurchaseItems && !selectedOption.isClosetItem) {
+        return false;
+      }
+
+      // Filter by price range
+      const price = selectedOption.price || 0;
+      if (filters.minPrice !== undefined && price < filters.minPrice) {
+        return false;
+      }
+      if (filters.maxPrice !== undefined && price > filters.maxPrice) {
+        return false;
+      }
+
+      return true;
+    });
+
+    // Sort items
+    if (sortBy === 'price-asc') {
+      items = [...items].sort((a, b) => {
+        const priceA = [a.primary, ...a.alternatives][selectedItems[a.category] || 0]?.price || 0;
+        const priceB = [b.primary, ...b.alternatives][selectedItems[b.category] || 0]?.price || 0;
+        return priceA - priceB;
+      });
+    } else if (sortBy === 'price-desc') {
+      items = [...items].sort((a, b) => {
+        const priceA = [a.primary, ...a.alternatives][selectedItems[a.category] || 0]?.price || 0;
+        const priceB = [b.primary, ...b.alternatives][selectedItems[b.category] || 0]?.price || 0;
+        return priceB - priceA;
+      });
+    }
+
+    return items;
+  }, [recommendation, selectedMode, selectedItems, filters, sortBy]);
+
+  // Available categories for filtering
+  const availableCategories = useMemo(() => {
+    if (!recommendation?.outfit.items) return [];
+    return [...new Set(recommendation.outfit.items.map(item => item.category))];
+  }, [recommendation]);
+
+  // Reset filters
+  const resetFilters = () => {
+    setFilters({
+      maxPrice: undefined,
+      minPrice: undefined,
+      showClosetItems: true,
+      showPurchaseItems: true,
+      categories: [],
+    });
+    setSortBy('default');
+  };
+
+  // Check if any filters are active
+  const hasActiveFilters = filters.minPrice !== undefined ||
+    filters.maxPrice !== undefined ||
+    !filters.showClosetItems ||
+    !filters.showPurchaseItems ||
+    filters.categories.length > 0 ||
+    sortBy !== 'default';
 
   // Handle generating new recommendations
   const handleGenerateNew = async () => {
@@ -203,29 +330,11 @@ export default function RecommendationsPage() {
                 </div>
 
                 {/* Product Image */}
-                <div className="relative w-full h-40 mb-3 rounded-md overflow-hidden bg-gray-100">
-                  {option.imageUrl ? (
-                    <img
-                      src={option.imageUrl}
-                      alt={option.productName}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        // Show placeholder on error
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = 'none';
-                        target.parentElement?.classList.add('flex', 'items-center', 'justify-center');
-                        const placeholder = document.createElement('span');
-                        placeholder.className = 'text-5xl';
-                        placeholder.textContent = getCategoryIcon(categoryItem.category);
-                        target.parentElement?.appendChild(placeholder);
-                      }}
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <span className="text-5xl">{getCategoryIcon(categoryItem.category)}</span>
-                    </div>
-                  )}
-                </div>
+                <ProductImage
+                  imageUrl={option.imageUrl}
+                  category={categoryItem.category}
+                  productName={option.productName}
+                />
 
                 <div className="font-medium text-sm mb-2">{option.productName}</div>
 
@@ -458,17 +567,216 @@ export default function RecommendationsPage() {
               </CardContent>
             </Card>
 
-            {/* Render categories based on mode */}
+            {/* Filters & Sort */}
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowFilters(!showFilters)}
+                  className="flex items-center gap-2"
+                >
+                  <SlidersHorizontal className="h-4 w-4" />
+                  {showFilters ? 'Hide Filters' : 'Show Filters'}
+                  {hasActiveFilters && (
+                    <Badge variant="secondary" className="ml-1 bg-blush text-blush">
+                      Active
+                    </Badge>
+                  )}
+                </Button>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Sort by:</span>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                    className="text-sm border rounded-md px-2 py-1 bg-background"
+                  >
+                    <option value="default">Default</option>
+                    <option value="price-asc">Price: Low to High</option>
+                    <option value="price-desc">Price: High to Low</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Filter Panel */}
+              {showFilters && (
+                <Card className="mb-4 border-dashed">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="font-medium text-sm">Filter Options</h4>
+                      {hasActiveFilters && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={resetFilters}
+                          className="text-muted-foreground h-auto py-1"
+                        >
+                          <X className="h-3 w-3 mr-1" />
+                          Reset
+                        </Button>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {/* Price Range */}
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider block mb-2">
+                          Price Range
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            placeholder="Min"
+                            value={filters.minPrice ?? ''}
+                            onChange={(e) => setFilters(prev => ({
+                              ...prev,
+                              minPrice: e.target.value ? Number(e.target.value) : undefined
+                            }))}
+                            className="w-20 text-sm border rounded-md px-2 py-1 bg-background"
+                          />
+                          <span className="text-muted-foreground">-</span>
+                          <input
+                            type="number"
+                            placeholder="Max"
+                            value={filters.maxPrice ?? ''}
+                            onChange={(e) => setFilters(prev => ({
+                              ...prev,
+                              maxPrice: e.target.value ? Number(e.target.value) : undefined
+                            }))}
+                            className="w-20 text-sm border rounded-md px-2 py-1 bg-background"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Item Source */}
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider block mb-2">
+                          Item Source
+                        </label>
+                        <div className="flex flex-col gap-2">
+                          <label className="flex items-center gap-2 text-sm cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={filters.showClosetItems}
+                              onChange={(e) => setFilters(prev => ({
+                                ...prev,
+                                showClosetItems: e.target.checked
+                              }))}
+                              className="rounded"
+                            />
+                            From Closet
+                          </label>
+                          <label className="flex items-center gap-2 text-sm cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={filters.showPurchaseItems}
+                              onChange={(e) => setFilters(prev => ({
+                                ...prev,
+                                showPurchaseItems: e.target.checked
+                              }))}
+                              className="rounded"
+                            />
+                            To Purchase
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Category Filter */}
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider block mb-2">
+                          Categories
+                        </label>
+                        <div className="flex flex-wrap gap-1">
+                          {availableCategories
+                            .filter(cat => {
+                              if (selectedMode === 'dress') return cat !== 'tops' && cat !== 'bottoms';
+                              return cat !== 'dress';
+                            })
+                            .map(category => (
+                            <button
+                              key={category}
+                              onClick={() => {
+                                setFilters(prev => ({
+                                  ...prev,
+                                  categories: prev.categories.includes(category)
+                                    ? prev.categories.filter(c => c !== category)
+                                    : [...prev.categories, category]
+                                }));
+                              }}
+                              className={cn(
+                                "text-xs px-2 py-1 rounded-full border transition-colors",
+                                filters.categories.includes(category)
+                                  ? "bg-primary text-primary-foreground border-primary"
+                                  : "border-border hover:border-primary/50"
+                              )}
+                            >
+                              {getCategoryIcon(category)} {category}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Active filters summary */}
+              {hasActiveFilters && !showFilters && (
+                <div className="flex flex-wrap items-center gap-2 mb-4">
+                  <span className="text-xs text-muted-foreground">Active filters:</span>
+                  {filters.minPrice !== undefined && (
+                    <Badge variant="outline" className="text-xs">Min: ${filters.minPrice}</Badge>
+                  )}
+                  {filters.maxPrice !== undefined && (
+                    <Badge variant="outline" className="text-xs">Max: ${filters.maxPrice}</Badge>
+                  )}
+                  {!filters.showClosetItems && (
+                    <Badge variant="outline" className="text-xs">No closet items</Badge>
+                  )}
+                  {!filters.showPurchaseItems && (
+                    <Badge variant="outline" className="text-xs">No purchase items</Badge>
+                  )}
+                  {filters.categories.length > 0 && (
+                    <Badge variant="outline" className="text-xs">
+                      {filters.categories.length} categories
+                    </Badge>
+                  )}
+                  {sortBy !== 'default' && (
+                    <Badge variant="outline" className="text-xs">
+                      {sortBy === 'price-asc' ? 'Price ↑' : 'Price ↓'}
+                    </Badge>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={resetFilters}
+                    className="text-muted-foreground h-auto py-0 px-1"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            {/* Render categories based on filters */}
             <div className="space-y-6 mb-6">
-              {recommendation.outfit.items
-                ?.filter(item => {
-                  if (selectedMode === 'dress') {
-                    return item.category !== 'tops' && item.category !== 'bottoms';
-                  } else {
-                    return item.category !== 'dress';
-                  }
-                })
-                .map(renderItemCategory)}
+              {filteredItems.length > 0 ? (
+                filteredItems.map(renderItemCategory)
+              ) : (
+                <Card className="border-dashed">
+                  <CardContent className="p-8 text-center">
+                    <Filter className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
+                    <h4 className="font-medium mb-1">No items match your filters</h4>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Try adjusting your filters to see more recommendations
+                    </p>
+                    <Button variant="outline" size="sm" onClick={resetFilters}>
+                      Reset Filters
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
             </div>
 
             {/* AI Reasoning */}

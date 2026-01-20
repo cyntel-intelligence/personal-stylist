@@ -259,7 +259,7 @@ export function validateFirebaseStorageUrl(url: string): { valid: boolean; error
     }
 
     return { valid: true };
-  } catch (error) {
+  } catch {
     return { valid: false, error: 'Invalid URL format' };
   }
 }
