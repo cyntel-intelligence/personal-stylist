@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,13 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+    router.push("/login");
+  };
 
   const navItems = [
     { href: "/dashboard", label: "Home", icon: Home },
@@ -63,7 +69,7 @@ export default function DashboardLayout({
             </nav>
 
             {/* Sign Out Button */}
-            <Button variant="ghost" onClick={signOut} className="gap-2">
+            <Button variant="ghost" onClick={handleSignOut} className="gap-2">
               <LogOut className="h-4 w-4" />
               <span className="hidden md:inline">Sign Out</span>
             </Button>

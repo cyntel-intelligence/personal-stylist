@@ -31,6 +31,12 @@ const categoryOptions: { value: ClosetItemCategory | "all"; label: string; icon:
 export default function ClosetPage() {
   const router = useRouter();
   const { user, signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+    router.push("/login");
+  };
+
   const [items, setItems] = useState<ClosetItem[]>([]);
   const [filteredItems, setFilteredItems] = useState<ClosetItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -158,7 +164,7 @@ export default function ClosetPage() {
               <Link href="/dashboard/events" className="text-sm text-muted-foreground hover:text-blush transition-colors">
                 Events
               </Link>
-              <Button onClick={() => signOut()} variant="ghost" size="sm" className="text-muted-foreground">
+              <Button onClick={handleSignOut} variant="ghost" size="sm" className="text-muted-foreground">
                 Sign Out
               </Button>
             </div>

@@ -42,6 +42,12 @@ const toSafeDate = (value: any): Date => {
 export default function EventsPage() {
   const router = useRouter();
   const { user, signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+    router.push("/login");
+  };
+
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -109,7 +115,7 @@ export default function EventsPage() {
               <Link href="/dashboard/events" className="text-sm text-blush font-medium">
                 Events
               </Link>
-              <Button onClick={() => signOut()} variant="ghost" size="sm" className="text-muted-foreground">
+              <Button onClick={handleSignOut} variant="ghost" size="sm" className="text-muted-foreground">
                 Sign Out
               </Button>
             </div>

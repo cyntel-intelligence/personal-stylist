@@ -66,6 +66,11 @@ export default function RecommendationsPage() {
   const { user, signOut } = useAuth();
   const eventId = params.eventId as string;
 
+  const handleSignOut = async () => {
+    await signOut();
+    router.push("/login");
+  };
+
   const [event, setEvent] = useState<Event | null>(null);
   const [recommendation, setRecommendation] = useState<Recommendation | null>(null);
   const [loading, setLoading] = useState(true);
@@ -488,7 +493,7 @@ export default function RecommendationsPage() {
               <Link href="/dashboard/events" className="text-sm text-blush font-medium">
                 Events
               </Link>
-              <Button onClick={() => signOut()} variant="ghost" size="sm" className="text-muted-foreground">
+              <Button onClick={handleSignOut} variant="ghost" size="sm" className="text-muted-foreground">
                 Sign Out
               </Button>
             </div>

@@ -42,6 +42,11 @@ export default function ShoppingDashboardPage() {
   const router = useRouter();
   const { user, signOut } = useAuth();
 
+  const handleSignOut = async () => {
+    await signOut();
+    router.push("/login");
+  };
+
   const [events, setEvents] = useState<Event[]>([]);
   const [allItems, setAllItems] = useState<ShoppingItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -200,7 +205,7 @@ export default function ShoppingDashboardPage() {
                 <Link href="/dashboard/events" className="text-sm text-muted-foreground hover:text-blush transition-colors">
                   Events
                 </Link>
-                <Button onClick={() => signOut()} variant="ghost" size="sm" className="text-muted-foreground">
+                <Button onClick={handleSignOut} variant="ghost" size="sm" className="text-muted-foreground">
                   Sign Out
                 </Button>
               </div>
@@ -242,7 +247,7 @@ export default function ShoppingDashboardPage() {
               <Link href="/dashboard/events" className="text-sm text-muted-foreground hover:text-blush transition-colors">
                 Events
               </Link>
-              <Button onClick={() => signOut()} variant="ghost" size="sm" className="text-muted-foreground">
+              <Button onClick={handleSignOut} variant="ghost" size="sm" className="text-muted-foreground">
                 Sign Out
               </Button>
             </div>
