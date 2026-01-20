@@ -41,7 +41,7 @@ export default function RecommendationsPage() {
   const [recommendation, setRecommendation] = useState<Recommendation | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedMode, setSelectedMode] = useState<'dress' | 'separates'>('dress');
-  const [selectedItems, setSelectedItems] = useState<Record<ItemCategory, number>>({});
+  const [selectedItems, setSelectedItems] = useState<Partial<Record<ItemCategory, number>>>({});
   const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
@@ -229,8 +229,8 @@ export default function RecommendationsPage() {
 
                 <div className="font-medium text-sm mb-2">{option.productName}</div>
 
-                {option.description && (
-                  <p className="text-xs text-gray-600 mb-3 line-clamp-2">{option.description}</p>
+                {option.reason && (
+                  <p className="text-xs text-muted-foreground font-display mb-3 line-clamp-2">{option.reason}</p>
                 )}
 
                 {option.isClosetItem ? (

@@ -5,7 +5,7 @@ export interface ClosetItem {
   userId: string;
 
   // Item Details
-  category: ItemCategory;
+  category: ClosetItemCategory;
   subcategory?: string; // "necklace", "earrings", "clutch", "heels", etc.
 
   // Visual Data
@@ -47,10 +47,10 @@ export interface ClosetItem {
   updatedAt: Timestamp;
 }
 
-export type ItemCategory = "dress" | "shoes" | "bag" | "outerwear" | "jewelry";
+export type ClosetItemCategory = "dress" | "shoes" | "bag" | "outerwear" | "jewelry";
 
 // Subcategories by category
-export const subcategoriesByCategory: Record<ItemCategory, string[]> = {
+export const subcategoriesByCategory: Record<ClosetItemCategory, string[]> = {
   dress: ["Mini Dress", "Midi Dress", "Maxi Dress", "Cocktail Dress", "Formal Gown", "Jumpsuit"],
   shoes: ["Heels", "Flats", "Sandals", "Boots", "Wedges", "Sneakers"],
   bag: ["Clutch", "Crossbody", "Tote", "Evening Bag", "Shoulder Bag"],
@@ -97,7 +97,7 @@ export type Season = (typeof seasons)[number];
 
 // Helper type for form upload
 export interface ClosetItemUpload {
-  category: ItemCategory;
+  category: ClosetItemCategory;
   subcategory?: string;
   brand?: string;
   price?: number;
@@ -107,7 +107,7 @@ export interface ClosetItemUpload {
 
 // Filter options for closet view
 export interface ClosetFilters {
-  categories?: ItemCategory[];
+  categories?: ClosetItemCategory[];
   colors?: string[];
   styles?: string[];
   occasions?: string[];
@@ -119,7 +119,7 @@ export interface ClosetFilters {
 // Closet statistics
 export interface ClosetStats {
   totalItems: number;
-  byCategory: Record<ItemCategory, number>;
+  byCategory: Record<ClosetItemCategory, number>;
   mostWorn: ClosetItem[];
   leastWorn: ClosetItem[];
   averagePrice: number;

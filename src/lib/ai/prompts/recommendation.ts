@@ -118,6 +118,13 @@ export function buildRecommendationPrompt(
   const sanitizedLovedBrands = sanitizeStringArray(userProfile.styleDNA.lovedBrands || []);
   const sanitizedNeverAgain = sanitizeStringArray(userProfile.styleDNA.neverAgainList);
 
+  // New profile data sections
+  const measurements = userProfile.profile.measurements;
+  const bodyShape = userProfile.profile.bodyShape;
+  const visualStyle = userProfile.visualStyleQuiz;
+  const lifestyle = userProfile.lifestyleProfile;
+  const fabricPrefs = userProfile.fabricPreferences;
+
   return `You are an expert personal stylist helping a client find the perfect outfit for an upcoming event.
 
 CLIENT PROFILE:
@@ -127,14 +134,49 @@ Physical Attributes:
 - Dress Size: ${userProfile.profile.sizes.dress}
 - Top Size: ${userProfile.profile.sizes.tops}
 - Bottom Size: ${userProfile.profile.sizes.bottoms}
+- Denim Waist: ${userProfile.profile.sizes.denim}
+${userProfile.profile.sizes.bra ? `- Bra Size: ${userProfile.profile.sizes.bra}` : ""}
 - Fit Preference: ${sanitizeUserInput(userProfile.profile.fitPreference)}
+${bodyShape ? `- Body Shape: ${bodyShape}` : ""}
+
+${measurements ? `Body Measurements:
+${measurements.bust ? `- Bust: ${measurements.bust} inches` : ""}
+${measurements.waist ? `- Waist: ${measurements.waist} inches` : ""}
+${measurements.hips ? `- Hips: ${measurements.hips} inches` : ""}
+${measurements.inseam ? `- Inseam: ${measurements.inseam} inches` : ""}
+${measurements.shoulderWidth ? `- Shoulder Width: ${measurements.shoulderWidth} inches` : ""}
+` : ""}
+
+${visualStyle ? `Visual Style Profile (from style quiz):
+- Primary Style: ${visualStyle.styleProfile.primary}
+${visualStyle.styleProfile.secondary ? `- Secondary Style: ${visualStyle.styleProfile.secondary}` : ""}
+- Style Confidence: ${visualStyle.styleProfile.confidence}%
+` : ""}
 
 Style DNA:
 - Style Words: ${sanitizedStyleWords.join(", ")}
 - Loved Brands: ${sanitizedLovedBrands.join(", ") || "None specified"}
 - Price Range (Dresses): $${userProfile.styleDNA.priceRanges.dresses.min} - $${userProfile.styleDNA.priceRanges.dresses.max}
 - Price Range (Shoes): $${userProfile.styleDNA.priceRanges.shoes.min} - $${userProfile.styleDNA.priceRanges.shoes.max}
+- Price Range (Bags): $${userProfile.styleDNA.priceRanges.bags.min} - $${userProfile.styleDNA.priceRanges.bags.max}
+- Price Range (Jewelry): $${userProfile.styleDNA.priceRanges.jewelry.min} - $${userProfile.styleDNA.priceRanges.jewelry.max}
 - Never Again List: ${sanitizedNeverAgain.join(", ") || "None"}
+
+${lifestyle ? `Lifestyle Profile:
+- Work Environment: ${lifestyle.workEnvironment}${lifestyle.workDressCode ? ` (${sanitizeUserInput(lifestyle.workDressCode)})` : ""}
+- Social Style: ${lifestyle.socialLifestyle}
+- Typical Occasions: ${sanitizeStringArray(lifestyle.typicalOccasions).join(", ") || "Various"}
+- Climate: ${lifestyle.climate}
+${lifestyle.location?.city ? `- Location: ${sanitizeUserInput(lifestyle.location.city)}${lifestyle.location.state ? `, ${sanitizeUserInput(lifestyle.location.state)}` : ""}` : ""}
+` : ""}
+
+${fabricPrefs ? `Fabric Preferences:
+- Loved Fabrics: ${sanitizeStringArray(fabricPrefs.lovedFabrics).join(", ") || "No preference"}
+- Avoid Fabrics: ${sanitizeStringArray(fabricPrefs.avoidFabrics).join(", ") || "None"}
+- Sensitivities: ${sanitizeStringArray(fabricPrefs.sensitivities).join(", ") || "None"}
+- Care Preference: ${fabricPrefs.carePreference}
+- Eco-Friendly Priority: ${fabricPrefs.ecoFriendly ? "Yes - prioritize sustainable options" : "No specific preference"}
+` : ""}
 
 Flattery Preferences:
 - Favorite Features to Show: ${sanitizeStringArray(userProfile.flatteryMap.favoriteBodyParts).join(", ")}
@@ -368,11 +410,34 @@ For EACH item (primary and alternatives):
 IMPORTANT RULES:
 - **ONLY CURRENT, IN-STOCK ITEMS** - Never recommend sold out, discontinued, or past-season items
 - Respect all "never again" items and avoided necklines/colors
-- Stay within price ranges
-- Honor comfort limits (heel height, strapless, etc.)
+- Stay within price ranges for each category
+- Honor comfort limits (heel height, strapless, shapewear tolerance)
 - Prioritize flattering the favorite features and minimizing the areas to downplay
 - Consider the activity level (no 5-inch heels for "active" events!)
 - Match the formality of the dress code
+
+BODY-SPECIFIC GUIDANCE:
+- **Body Shape**: If provided, use body shape to recommend the most flattering silhouettes:
+  * Hourglass: Fitted waists, wrap styles, figure-hugging pieces
+  * Pear: A-line skirts, structured shoulders, boat necklines
+  * Apple: Empire waists, flowing fabrics, V-necks
+  * Rectangle: Peplums, belted styles, ruffles to create curves
+  * Inverted Triangle: Flared skirts, detailed bottoms, soft shoulders
+- **Measurements**: Use bust/waist/hip measurements to recommend proper fit and proportions
+- **Visual Style Quiz**: Weight the primary style heavily in recommendations
+
+FABRIC RULES:
+- NEVER recommend avoided fabrics or materials with noted sensitivities
+- Prioritize loved fabrics when possible
+- If eco-friendly is marked, highlight sustainable brands and materials
+- Match fabric weight to climate and season
+- Consider care preferences (no dry-clean-only for machine-wash-preferred users)
+
+LIFESTYLE CONTEXT:
+- Consider work environment when recommending day-to-night versatility
+- Match social style to formality recommendations
+- Use climate data to recommend appropriate weights and layers
+- Reference typical occasions to ensure outfit versatility
 
 Return your response as JSON with this structure:
 {

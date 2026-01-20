@@ -91,6 +91,7 @@ export interface OutfitItem {
   price?: number;
   imageUrl: string;
   productName: string;
+  reason?: string; // AI explanation of why this item was recommended
   shippingEstimate?: string;
   alternativeSizes?: number[];
 }

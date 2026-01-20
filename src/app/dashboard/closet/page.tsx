@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
-import { ClosetItem, ItemCategory } from "@/types/closet";
+import { ClosetItem, ClosetItemCategory } from "@/types/closet";
 import { closetService } from "@/lib/firebase/firestore";
 import { ClosetGrid } from "@/components/closet/ClosetGrid";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,7 @@ import {
 import { Plus, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
 
-const categoryOptions: { value: ItemCategory | "all"; label: string; icon: string }[] = [
+const categoryOptions: { value: ClosetItemCategory | "all"; label: string; icon: string }[] = [
   { value: "all", label: "All Items", icon: "✨" },
   { value: "dress", label: "Dresses", icon: "👗" },
   { value: "shoes", label: "Shoes", icon: "👠" },
@@ -34,7 +34,7 @@ export default function ClosetPage() {
   const [items, setItems] = useState<ClosetItem[]>([]);
   const [filteredItems, setFilteredItems] = useState<ClosetItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [categoryFilter, setCategoryFilter] = useState<ItemCategory | "all">("all");
+  const [categoryFilter, setCategoryFilter] = useState<ClosetItemCategory | "all">("all");
 
   useEffect(() => {
     if (!user) return;
@@ -134,7 +134,7 @@ export default function ClosetPage() {
     }
   };
 
-  const getCategoryCount = (category: ItemCategory | "all"): number => {
+  const getCategoryCount = (category: ClosetItemCategory | "all"): number => {
     if (category === "all") return items.length;
     return items.filter((item) => item.category === category).length;
   };
@@ -225,7 +225,7 @@ export default function ClosetPage() {
 
               <Select
                 value={categoryFilter}
-                onValueChange={(value) => setCategoryFilter(value as ItemCategory | "all")}
+                onValueChange={(value) => setCategoryFilter(value as ClosetItemCategory | "all")}
               >
                 <SelectTrigger className="w-48 rounded-full">
                   <SelectValue />

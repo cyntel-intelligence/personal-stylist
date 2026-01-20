@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Upload, X } from "lucide-react";
-import { ItemCategory, subcategoriesByCategory, ClosetItemUpload } from "@/types/closet";
+import { ClosetItemCategory, subcategoriesByCategory, ClosetItemUpload } from "@/types/closet";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -17,7 +17,7 @@ type Props = {
   loading?: boolean;
 };
 
-const categoryOptions: { value: ItemCategory; label: string; icon: string }[] = [
+const categoryOptions: { value: ClosetItemCategory; label: string; icon: string }[] = [
   { value: "dress", label: "Dress", icon: "👗" },
   { value: "shoes", label: "Shoes", icon: "👠" },
   { value: "bag", label: "Bag", icon: "👜" },
@@ -26,7 +26,7 @@ const categoryOptions: { value: ItemCategory; label: string; icon: string }[] = 
 ];
 
 export function UploadForm({ onSubmit, onCancel, loading }: Props) {
-  const [category, setCategory] = useState<ItemCategory>("dress");
+  const [category, setCategory] = useState<ClosetItemCategory>("dress");
   const [subcategory, setSubcategory] = useState("");
   const [brand, setBrand] = useState("");
   const [price, setPrice] = useState("");

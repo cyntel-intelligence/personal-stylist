@@ -14,6 +14,11 @@ export interface UserProfile {
   temperatureProfile: TemperatureProfile;
   shoppingPreferences: ShoppingPreferences;
 
+  // New enhanced profile sections
+  lifestyleProfile?: LifestyleProfile;
+  fabricPreferences?: FabricPreferences;
+  visualStyleQuiz?: VisualStyleQuiz;
+
   createdAt: Timestamp;
   updatedAt: Timestamp;
   onboardingCompleted: boolean;
@@ -29,6 +34,15 @@ export interface PhysicalProfile {
     denim: number; // waist size (e.g., 27, 28, 29)
     bra?: string; // "32A", "34B", "36C", etc. (optional)
   };
+  // Detailed body measurements (in inches)
+  measurements?: {
+    bust?: number;
+    waist?: number;
+    hips?: number;
+    inseam?: number;
+    shoulderWidth?: number;
+  };
+  bodyShape?: "hourglass" | "pear" | "apple" | "rectangle" | "inverted-triangle";
   fitPreference: "fitted" | "relaxed" | "oversized" | "standard";
 }
 
@@ -84,6 +98,36 @@ export interface ShoppingPreferences {
   fastShippingOnly: boolean;
 }
 
+export interface LifestyleProfile {
+  workEnvironment: "corporate" | "business-casual" | "creative" | "remote" | "active" | "varied";
+  workDressCode?: string; // Additional notes about work dress code
+  socialLifestyle: "frequent-events" | "occasional-outings" | "homebody" | "active-social";
+  typicalOccasions: string[]; // "weddings", "galas", "date-nights", "brunches", "travel", etc.
+  climate: "hot" | "cold" | "mild" | "seasonal";
+  location?: {
+    city?: string;
+    state?: string;
+  };
+}
+
+export interface FabricPreferences {
+  lovedFabrics: string[]; // "silk", "cotton", "cashmere", "linen", "wool", etc.
+  avoidFabrics: string[]; // fabrics they find uncomfortable
+  sensitivities: string[]; // "wool-itchy", "polyester-sweaty", etc.
+  carePreference: "dry-clean-ok" | "machine-wash-preferred" | "no-preference";
+  ecoFriendly: boolean; // prefers sustainable/eco-friendly materials
+}
+
+export interface VisualStyleQuiz {
+  selectedOutfits: string[]; // IDs of outfits they selected as favorites
+  styleProfile: {
+    primary: string; // Primary style identified (e.g., "classic-elegant")
+    secondary?: string; // Secondary style
+    confidence: number; // 0-100 confidence in the assessment
+  };
+  completedAt?: Date;
+}
+
 // Helper type for form data (without Firestore Timestamps)
 export type UserProfileFormData = Omit<UserProfile, "createdAt" | "updatedAt"> & {
   createdAt?: Date;
@@ -99,13 +143,23 @@ export interface CreateUserData {
 }
 
 // Type for onboarding steps
-export type OnboardingStep = "basic-info" | "style-dna" | "flattery-map" | "color-preferences";
+export type OnboardingStep =
+  | "body-measurements"
+  | "visual-style-quiz"
+  | "lifestyle"
+  | "style-dna"
+  | "flattery-map"
+  | "fabric-preferences"
+  | "color-preferences";
 
 // Type for profile completion status
 export interface ProfileCompletion {
-  basicInfo: boolean;
+  bodyMeasurements: boolean;
+  visualStyleQuiz: boolean;
+  lifestyle: boolean;
   styleDNA: boolean;
   flatteryMap: boolean;
+  fabricPreferences: boolean;
   colorPreferences: boolean;
   overall: number; // percentage (0-100)
 }

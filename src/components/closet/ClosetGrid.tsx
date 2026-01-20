@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ClosetItem, ItemCategory } from "@/types/closet";
+import { ClosetItem, ClosetItemCategory } from "@/types/closet";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,7 +25,7 @@ type Props = {
   loading?: boolean;
 };
 
-const categoryIcons: Record<ItemCategory, string> = {
+const categoryIcons: Record<ClosetItemCategory, string> = {
   dress: "👗",
   shoes: "👠",
   bag: "👜",

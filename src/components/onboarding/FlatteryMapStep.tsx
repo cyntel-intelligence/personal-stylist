@@ -3,9 +3,15 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Sparkles, Check } from "lucide-react";
 
 type FlatteryMapData = {
   flatteryMap?: {
@@ -30,12 +36,27 @@ type Props = {
 };
 
 const BODY_PARTS = [
-  "Shoulders", "Bust", "Arms", "Waist", "Hips", "Legs", "Back", "Décolletage"
+  { name: "Shoulders", icon: "💪" },
+  { name: "Bust", icon: "👙" },
+  { name: "Arms", icon: "✋" },
+  { name: "Waist", icon: "⏳" },
+  { name: "Hips", icon: "🍑" },
+  { name: "Legs", icon: "🦵" },
+  { name: "Back", icon: "🔙" },
+  { name: "Décolletage", icon: "✨" },
 ];
 
 const NECKLINES = [
-  "V-Neck", "Scoop", "Boat", "Off-Shoulder", "Halter",
-  "Sweetheart", "Square", "High Neck", "Cowl", "Asymmetric"
+  { name: "V-Neck", icon: "∨" },
+  { name: "Scoop", icon: "⌣" },
+  { name: "Boat", icon: "⎯" },
+  { name: "Off-Shoulder", icon: "↔" },
+  { name: "Halter", icon: "△" },
+  { name: "Sweetheart", icon: "💕" },
+  { name: "Square", icon: "□" },
+  { name: "High Neck", icon: "▲" },
+  { name: "Cowl", icon: "∪" },
+  { name: "Asymmetric", icon: "∠" },
 ];
 
 export function FlatteryMapStep({ initialData, onComplete, onBack }: Props) {
@@ -51,53 +72,49 @@ export function FlatteryMapStep({ initialData, onComplete, onBack }: Props) {
   const [avoidNecklines, setAvoidNecklines] = useState<string[]>(
     initialData.flatteryMap?.necklinePreferences?.avoid || []
   );
-  const [dressLength, setDressLength] = useState<"mini" | "knee" | "midi" | "maxi" | "any">(
-    initialData.flatteryMap?.lengthPreferences?.dresses || "any"
-  );
-  const [sleeveLength, setSleeveLength] = useState<"sleeveless" | "cap" | "short" | "3/4" | "long" | "any">(
-    initialData.flatteryMap?.lengthPreferences?.sleeves || "any"
-  );
-  const [waistDefinition, setWaistDefinition] = useState<"always" | "sometimes" | "never">(
-    initialData.flatteryMap?.waistDefinition || "sometimes"
-  );
+  const [dressLength, setDressLength] = useState<
+    "mini" | "knee" | "midi" | "maxi" | "any"
+  >(initialData.flatteryMap?.lengthPreferences?.dresses || "any");
+  const [sleeveLength, setSleeveLength] = useState<
+    "sleeveless" | "cap" | "short" | "3/4" | "long" | "any"
+  >(initialData.flatteryMap?.lengthPreferences?.sleeves || "any");
+  const [waistDefinition, setWaistDefinition] = useState<
+    "always" | "sometimes" | "never"
+  >(initialData.flatteryMap?.waistDefinition || "sometimes");
 
   const toggleFavorite = (part: string) => {
     if (favoriteBodyParts.includes(part)) {
-      setFavoriteBodyParts(favoriteBodyParts.filter(p => p !== part));
+      setFavoriteBodyParts(favoriteBodyParts.filter((p) => p !== part));
     } else if (favoriteBodyParts.length < 2) {
       setFavoriteBodyParts([...favoriteBodyParts, part]);
-      // Remove from minimize if it's there
-      setMinimizeBodyParts(minimizeBodyParts.filter(p => p !== part));
+      setMinimizeBodyParts(minimizeBodyParts.filter((p) => p !== part));
     }
   };
 
   const toggleMinimize = (part: string) => {
     if (minimizeBodyParts.includes(part)) {
-      setMinimizeBodyParts(minimizeBodyParts.filter(p => p !== part));
+      setMinimizeBodyParts(minimizeBodyParts.filter((p) => p !== part));
     } else if (minimizeBodyParts.length < 2) {
       setMinimizeBodyParts([...minimizeBodyParts, part]);
-      // Remove from favorites if it's there
-      setFavoriteBodyParts(favoriteBodyParts.filter(p => p !== part));
+      setFavoriteBodyParts(favoriteBodyParts.filter((p) => p !== part));
     }
   };
 
-  const toggleLovedNeckline = (neckline: string) => {
-    if (lovedNecklines.includes(neckline)) {
-      setLovedNecklines(lovedNecklines.filter(n => n !== neckline));
+  const toggleNeckline = (neckline: string, type: "love" | "avoid") => {
+    if (type === "love") {
+      if (lovedNecklines.includes(neckline)) {
+        setLovedNecklines(lovedNecklines.filter((n) => n !== neckline));
+      } else {
+        setLovedNecklines([...lovedNecklines, neckline]);
+        setAvoidNecklines(avoidNecklines.filter((n) => n !== neckline));
+      }
     } else {
-      setLovedNecklines([...lovedNecklines, neckline]);
-      // Remove from avoid if it's there
-      setAvoidNecklines(avoidNecklines.filter(n => n !== neckline));
-    }
-  };
-
-  const toggleAvoidNeckline = (neckline: string) => {
-    if (avoidNecklines.includes(neckline)) {
-      setAvoidNecklines(avoidNecklines.filter(n => n !== neckline));
-    } else {
-      setAvoidNecklines([...avoidNecklines, neckline]);
-      // Remove from loved if it's there
-      setLovedNecklines(lovedNecklines.filter(n => n !== neckline));
+      if (avoidNecklines.includes(neckline)) {
+        setAvoidNecklines(avoidNecklines.filter((n) => n !== neckline));
+      } else {
+        setAvoidNecklines([...avoidNecklines, neckline]);
+        setLovedNecklines(lovedNecklines.filter((n) => n !== neckline));
+      }
     }
   };
 
@@ -123,103 +140,163 @@ export function FlatteryMapStep({ initialData, onComplete, onBack }: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
+      {/* Header */}
+      <div className="text-center mb-8">
+        <div className="w-16 h-16 rounded-full bg-blush flex items-center justify-center mx-auto mb-4">
+          <Sparkles className="h-8 w-8 text-blush" />
+        </div>
+        <h2 className="text-2xl font-serif mb-2">Flattery Map</h2>
+        <p className="text-muted-foreground font-display">
+          Help us find silhouettes that make you shine
+        </p>
+      </div>
+
       {/* Favorite Body Parts */}
       <div className="space-y-4">
-        <div>
-          <h3 className="text-lg font-semibold">Show Off Your Best Features</h3>
-          <p className="text-sm text-gray-600">
-            Pick up to 2 body parts you love to highlight ({favoriteBodyParts.length}/2)
-          </p>
-        </div>
+        <h3 className="text-lg font-serif flex items-center gap-2">
+          <span className="w-6 h-6 rounded-full bg-blush text-blush text-xs flex items-center justify-center font-medium">
+            1
+          </span>
+          Show Off Your Best Features
+        </h3>
+        <p className="text-sm text-muted-foreground font-display">
+          Pick up to 2 body parts you love to highlight ({favoriteBodyParts.length}/2)
+        </p>
 
-        <div className="flex flex-wrap gap-2">
-          {BODY_PARTS.map((part) => (
-            <Badge
-              key={part}
-              variant={favoriteBodyParts.includes(part) ? "default" : "outline"}
-              className="cursor-pointer px-4 py-2"
-              onClick={() => toggleFavorite(part)}
-            >
-              {part}
-            </Badge>
-          ))}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {BODY_PARTS.map((part) => {
+            const isSelected = favoriteBodyParts.includes(part.name);
+            return (
+              <Card
+                key={part.name}
+                className={`cursor-pointer transition-all duration-300 ${
+                  isSelected
+                    ? "shadow-luxe-lg border-green-500 bg-green-50"
+                    : "shadow-luxe hover:shadow-luxe-lg border-border"
+                }`}
+                onClick={() => toggleFavorite(part.name)}
+              >
+                <CardContent className="p-3 text-center">
+                  <div className="text-2xl mb-1">{part.icon}</div>
+                  <div className="text-sm font-medium">{part.name}</div>
+                  {isSelected && (
+                    <div className="text-xs text-green-600 mt-1">Highlight</div>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       </div>
 
       {/* Minimize Body Parts */}
       <div className="space-y-4">
-        <div>
-          <h3 className="text-lg font-semibold">Areas to Downplay</h3>
-          <p className="text-sm text-gray-600">
-            Pick up to 2 areas you prefer to minimize ({minimizeBodyParts.length}/2)
-          </p>
-        </div>
+        <h3 className="text-lg font-serif flex items-center gap-2">
+          <span className="w-6 h-6 rounded-full bg-blush text-blush text-xs flex items-center justify-center font-medium">
+            2
+          </span>
+          Areas to Downplay
+        </h3>
+        <p className="text-sm text-muted-foreground font-display">
+          Pick up to 2 areas you prefer to minimize ({minimizeBodyParts.length}/2)
+        </p>
 
-        <div className="flex flex-wrap gap-2">
-          {BODY_PARTS.map((part) => (
-            <Badge
-              key={part}
-              variant={minimizeBodyParts.includes(part) ? "destructive" : "outline"}
-              className="cursor-pointer px-4 py-2"
-              onClick={() => toggleMinimize(part)}
-            >
-              {part}
-            </Badge>
-          ))}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {BODY_PARTS.map((part) => {
+            const isSelected = minimizeBodyParts.includes(part.name);
+            const isFavorite = favoriteBodyParts.includes(part.name);
+            return (
+              <Card
+                key={part.name}
+                className={`cursor-pointer transition-all duration-300 ${
+                  isSelected
+                    ? "shadow-luxe border-red-300 bg-red-50"
+                    : isFavorite
+                    ? "opacity-50 cursor-not-allowed"
+                    : "shadow-luxe hover:shadow-luxe-lg border-border"
+                }`}
+                onClick={() => !isFavorite && toggleMinimize(part.name)}
+              >
+                <CardContent className="p-3 text-center">
+                  <div className="text-2xl mb-1">{part.icon}</div>
+                  <div className="text-sm font-medium">{part.name}</div>
+                  {isSelected && (
+                    <div className="text-xs text-red-600 mt-1">Minimize</div>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       </div>
 
       {/* Neckline Preferences */}
       <div className="space-y-4">
-        <div>
-          <h3 className="text-lg font-semibold">Neckline Preferences</h3>
-          <p className="text-sm text-gray-600">Select necklines you love and ones to avoid</p>
-        </div>
+        <h3 className="text-lg font-serif flex items-center gap-2">
+          <span className="w-6 h-6 rounded-full bg-blush text-blush text-xs flex items-center justify-center font-medium">
+            3
+          </span>
+          Neckline Preferences
+        </h3>
+        <p className="text-sm text-muted-foreground font-display">
+          Tap once to love, tap again to avoid, tap once more to reset
+        </p>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label className="text-green-700">✓ Love These</Label>
-            <div className="flex flex-wrap gap-2">
-              {NECKLINES.map((neckline) => (
-                <Badge
-                  key={neckline}
-                  variant={lovedNecklines.includes(neckline) ? "default" : "outline"}
-                  className="cursor-pointer"
-                  onClick={() => toggleLovedNeckline(neckline)}
-                >
-                  {neckline}
-                </Badge>
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-red-700">✗ Avoid These</Label>
-            <div className="flex flex-wrap gap-2">
-              {NECKLINES.map((neckline) => (
-                <Badge
-                  key={neckline}
-                  variant={avoidNecklines.includes(neckline) ? "destructive" : "outline"}
-                  className="cursor-pointer"
-                  onClick={() => toggleAvoidNeckline(neckline)}
-                >
-                  {neckline}
-                </Badge>
-              ))}
-            </div>
-          </div>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          {NECKLINES.map((neckline) => {
+            const isLoved = lovedNecklines.includes(neckline.name);
+            const isAvoided = avoidNecklines.includes(neckline.name);
+            return (
+              <Card
+                key={neckline.name}
+                className={`cursor-pointer transition-all duration-300 ${
+                  isLoved
+                    ? "shadow-luxe-lg border-green-500 bg-green-50"
+                    : isAvoided
+                    ? "shadow-luxe border-red-300 bg-red-50"
+                    : "shadow-luxe hover:shadow-luxe-lg border-border"
+                }`}
+                onClick={() => {
+                  if (!isLoved && !isAvoided) {
+                    toggleNeckline(neckline.name, "love");
+                  } else if (isLoved) {
+                    setLovedNecklines(lovedNecklines.filter((n) => n !== neckline.name));
+                    toggleNeckline(neckline.name, "avoid");
+                  } else {
+                    setAvoidNecklines(avoidNecklines.filter((n) => n !== neckline.name));
+                  }
+                }}
+              >
+                <CardContent className="p-3 text-center">
+                  <div className="text-lg mb-1 font-mono">{neckline.icon}</div>
+                  <div className="text-xs font-medium">{neckline.name}</div>
+                  {isLoved && (
+                    <div className="text-xs text-green-600 mt-1">Love</div>
+                  )}
+                  {isAvoided && (
+                    <div className="text-xs text-red-600 mt-1">Avoid</div>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       </div>
 
       {/* Length Preferences */}
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold">Length Preferences</h3>
+        <h3 className="text-lg font-serif flex items-center gap-2">
+          <span className="w-6 h-6 rounded-full bg-blush text-blush text-xs flex items-center justify-center font-medium">
+            4
+          </span>
+          Length Preferences
+        </h3>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Label>Dress Length</Label>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label className="font-display">Preferred Dress Length</Label>
             <Select value={dressLength} onValueChange={(v) => setDressLength(v as any)}>
-              <SelectTrigger>
+              <SelectTrigger className="rounded-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -232,10 +309,10 @@ export function FlatteryMapStep({ initialData, onComplete, onBack }: Props) {
             </Select>
           </div>
 
-          <div>
-            <Label>Sleeve Length</Label>
+          <div className="space-y-2">
+            <Label className="font-display">Preferred Sleeve Length</Label>
             <Select value={sleeveLength} onValueChange={(v) => setSleeveLength(v as any)}>
-              <SelectTrigger>
+              <SelectTrigger className="rounded-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -253,29 +330,37 @@ export function FlatteryMapStep({ initialData, onComplete, onBack }: Props) {
 
       {/* Waist Definition */}
       <div className="space-y-4">
-        <div>
-          <h3 className="text-lg font-semibold">Waist Definition</h3>
-          <p className="text-sm text-gray-600">Do you prefer dresses that define your waist?</p>
-        </div>
+        <h3 className="text-lg font-serif flex items-center gap-2">
+          <span className="w-6 h-6 rounded-full bg-blush text-blush text-xs flex items-center justify-center font-medium">
+            5
+          </span>
+          Waist Definition
+        </h3>
+        <p className="text-sm text-muted-foreground font-display">
+          Do you prefer dresses that define your waist?
+        </p>
 
         <div className="grid grid-cols-3 gap-3">
           {[
-            { value: "always", label: "Always", desc: "Fitted or belted waist" },
-            { value: "sometimes", label: "Sometimes", desc: "Depends on the style" },
-            { value: "never", label: "Never", desc: "Prefer straight or loose" },
+            { value: "always", label: "Always", desc: "Fitted or belted waist", icon: "⏳" },
+            { value: "sometimes", label: "Sometimes", desc: "Depends on the style", icon: "〰️" },
+            { value: "never", label: "Never", desc: "Prefer straight or loose", icon: "▭" },
           ].map((option) => (
             <Card
               key={option.value}
-              className={`cursor-pointer transition-all ${
+              className={`cursor-pointer transition-all duration-300 ${
                 waistDefinition === option.value
-                  ? "border-blue-500 bg-blue-50"
-                  : "border-gray-200 hover:border-gray-300"
+                  ? "shadow-luxe-lg border-primary bg-blush"
+                  : "shadow-luxe hover:shadow-luxe-lg border-border"
               }`}
               onClick={() => setWaistDefinition(option.value as any)}
             >
               <CardContent className="p-4 text-center">
+                <div className="text-2xl mb-2">{option.icon}</div>
                 <div className="font-medium">{option.label}</div>
-                <div className="text-xs text-gray-600 mt-1">{option.desc}</div>
+                <div className="text-xs text-muted-foreground font-display mt-1">
+                  {option.desc}
+                </div>
               </CardContent>
             </Card>
           ))}
@@ -283,12 +368,12 @@ export function FlatteryMapStep({ initialData, onComplete, onBack }: Props) {
       </div>
 
       {/* Navigation */}
-      <div className="flex justify-between pt-6">
-        <Button type="button" variant="outline" onClick={onBack}>
-          ← Back
+      <div className="flex justify-between pt-6 border-t border-border">
+        <Button type="button" variant="outline" onClick={onBack} className="rounded-full">
+          Back
         </Button>
-        <Button type="submit">
-          Next Step →
+        <Button type="submit" className="btn-luxe bg-gradient-luxe border-0 rounded-full px-8">
+          Continue
         </Button>
       </div>
     </form>

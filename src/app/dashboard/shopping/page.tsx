@@ -915,10 +915,10 @@ function QuickViewModal({
               </Button>
             </div>
 
-            {item.item.description && (
+            {item.item.reason && (
               <div>
                 <h3 className="font-medium mb-2">Why This Works</h3>
-                <p className="text-gray-600 text-sm">{item.item.description}</p>
+                <p className="text-muted-foreground text-sm font-display">{item.item.reason}</p>
               </div>
             )}
 
