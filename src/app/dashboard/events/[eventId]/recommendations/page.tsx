@@ -34,26 +34,26 @@ function ProductImage({
   if (hasError || isPlaceholder) {
     return (
       <div
-        className="relative w-full h-40 mb-3 rounded-lg overflow-hidden flex flex-col items-center justify-center"
+        className="relative w-full aspect-[3/4] mb-3 rounded-lg overflow-hidden flex flex-col items-center justify-center"
         style={{ backgroundColor: `#${colors.bg}` }}
       >
-        <span className="text-4xl mb-2">{getCategoryIcon(category)}</span>
+        <span className="text-5xl mb-3">{getCategoryIcon(category)}</span>
         <span
-          className="text-xs font-medium uppercase tracking-wider"
+          className="text-xs font-medium uppercase tracking-wider text-center px-3"
           style={{ color: `#${colors.text}` }}
         >
-          {productName.length > 25 ? productName.substring(0, 25) + "..." : productName}
+          {productName.length > 30 ? productName.substring(0, 30) + "..." : productName}
         </span>
       </div>
     );
   }
 
   return (
-    <div className="relative w-full h-40 mb-3 rounded-lg overflow-hidden bg-gray-100">
+    <div className="relative w-full aspect-[3/4] mb-3 rounded-lg overflow-hidden bg-gradient-to-b from-gray-50 to-gray-100">
       <img
         src={url}
         alt={productName}
-        className="w-full h-full object-cover"
+        className="w-full h-full object-contain p-2"
         onError={() => setHasError(true)}
       />
     </div>

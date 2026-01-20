@@ -675,12 +675,12 @@ function ProductCard({
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* Image Container */}
-      <div className="relative aspect-[3/4] bg-gray-50 rounded-sm overflow-hidden mb-3">
+      <div className="relative aspect-[3/4] bg-gradient-to-b from-gray-50 to-gray-100 rounded-lg overflow-hidden mb-3">
         {item.item.imageUrl ? (
           <img
             src={item.item.imageUrl}
             alt={item.item.productName}
-            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+            className="w-full h-full object-contain p-2 transition-transform duration-300 group-hover:scale-105"
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-6xl">
@@ -854,12 +854,12 @@ function QuickViewModal({
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <div className="grid md:grid-cols-2 gap-8">
           {/* Image */}
-          <div className="aspect-[3/4] bg-gray-50 rounded-lg overflow-hidden">
+          <div className="aspect-[3/4] bg-gradient-to-b from-gray-50 to-gray-100 rounded-lg overflow-hidden">
             {item.item.imageUrl ? (
               <img
                 src={item.item.imageUrl}
                 alt={item.item.productName}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain p-4"
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-9xl">
