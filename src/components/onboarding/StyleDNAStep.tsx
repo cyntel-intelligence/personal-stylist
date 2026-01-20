@@ -40,13 +40,13 @@ export function StyleDNAStep({ initialData, onComplete, onBack }: Props) {
   const [hatedBrands, setHatedBrands] = useState<string[]>(initialData.styleDNA?.hatedBrands || []);
   const [neverAgainList, setNeverAgainList] = useState<string[]>(initialData.styleDNA?.neverAgainList || []);
 
-  const [dressMin, setDressMin] = useState(initialData.styleDNA?.priceRanges?.dresses.min || 50);
+  const [dressMin, setDressMin] = useState(initialData.styleDNA?.priceRanges?.dresses.min || 0);
   const [dressMax, setDressMax] = useState(initialData.styleDNA?.priceRanges?.dresses.max || 200);
-  const [shoesMin, setShoesMin] = useState(initialData.styleDNA?.priceRanges?.shoes.min || 30);
+  const [shoesMin, setShoesMin] = useState(initialData.styleDNA?.priceRanges?.shoes.min || 0);
   const [shoesMax, setShoesMax] = useState(initialData.styleDNA?.priceRanges?.shoes.max || 150);
-  const [bagsMin, setBagsMin] = useState(initialData.styleDNA?.priceRanges?.bags.min || 40);
+  const [bagsMin, setBagsMin] = useState(initialData.styleDNA?.priceRanges?.bags.min || 0);
   const [bagsMax, setBagsMax] = useState(initialData.styleDNA?.priceRanges?.bags.max || 200);
-  const [jewelryMin, setJewelryMin] = useState(initialData.styleDNA?.priceRanges?.jewelry.min || 20);
+  const [jewelryMin, setJewelryMin] = useState(initialData.styleDNA?.priceRanges?.jewelry.min || 0);
   const [jewelryMax, setJewelryMax] = useState(initialData.styleDNA?.priceRanges?.jewelry.max || 100);
 
   const [brandInput, setBrandInput] = useState("");
@@ -151,11 +151,14 @@ export function StyleDNAStep({ initialData, onComplete, onBack }: Props) {
         {lovedBrands.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {lovedBrands.map((brand) => (
-              <Badge key={brand} variant="secondary" className="px-3 py-1">
+              <Badge key={brand} variant="secondary" className="px-3 py-1 flex items-center gap-2">
                 {brand}
                 <X
-                  className="ml-2 h-3 w-3 cursor-pointer"
-                  onClick={() => setLovedBrands(lovedBrands.filter(b => b !== brand))}
+                  className="h-4 w-4 cursor-pointer hover:text-red-500"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setLovedBrands(lovedBrands.filter(b => b !== brand));
+                  }}
                 />
               </Badge>
             ))}
@@ -183,11 +186,14 @@ export function StyleDNAStep({ initialData, onComplete, onBack }: Props) {
         {hatedBrands.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {hatedBrands.map((brand) => (
-              <Badge key={brand} variant="destructive" className="px-3 py-1">
+              <Badge key={brand} variant="destructive" className="px-3 py-1 flex items-center gap-2">
                 {brand}
                 <X
-                  className="ml-2 h-3 w-3 cursor-pointer"
-                  onClick={() => setHatedBrands(hatedBrands.filter(b => b !== brand))}
+                  className="h-4 w-4 cursor-pointer hover:text-white"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setHatedBrands(hatedBrands.filter(b => b !== brand));
+                  }}
                 />
               </Badge>
             ))}
@@ -215,10 +221,12 @@ export function StyleDNAStep({ initialData, onComplete, onBack }: Props) {
                 <div className="flex-1">
                   <Input
                     type="number"
-                    value={category.min}
-                    onChange={(e) => category.setMin(Number(e.target.value))}
+                    value={category.min || ""}
+                    onChange={(e) => category.setMin(Number(e.target.value) || 0)}
                     min="0"
+                    max="2000"
                     step="10"
+                    placeholder="$0"
                   />
                   <p className="text-xs text-gray-500 mt-1">Min: ${category.min}</p>
                 </div>
@@ -226,10 +234,12 @@ export function StyleDNAStep({ initialData, onComplete, onBack }: Props) {
                 <div className="flex-1">
                   <Input
                     type="number"
-                    value={category.max}
-                    onChange={(e) => category.setMax(Number(e.target.value))}
+                    value={category.max || ""}
+                    onChange={(e) => category.setMax(Number(e.target.value) || 0)}
                     min={category.min}
+                    max="2000"
                     step="10"
+                    placeholder="$0"
                   />
                   <p className="text-xs text-gray-500 mt-1">Max: ${category.max}</p>
                 </div>
@@ -259,11 +269,14 @@ export function StyleDNAStep({ initialData, onComplete, onBack }: Props) {
         {neverAgainList.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {neverAgainList.map((item) => (
-              <Badge key={item} variant="outline" className="px-3 py-1">
+              <Badge key={item} variant="outline" className="px-3 py-1 flex items-center gap-2">
                 {item}
                 <X
-                  className="ml-2 h-3 w-3 cursor-pointer"
-                  onClick={() => setNeverAgainList(neverAgainList.filter(i => i !== item))}
+                  className="h-4 w-4 cursor-pointer hover:text-red-500"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setNeverAgainList(neverAgainList.filter(i => i !== item));
+                  }}
                 />
               </Badge>
             ))}

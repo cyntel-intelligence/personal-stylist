@@ -8,7 +8,7 @@ const client = new Anthropic({
 
 // Model constants
 export const CLAUDE_MODELS = {
-  SONNET: "claude-3-7-sonnet-20250219" as const,
+  SONNET: "claude-sonnet-4-5-20250929" as const,
   OPUS: "claude-opus-4-5-20251101" as const,
 } as const;
 
@@ -130,14 +130,27 @@ export class ClaudeClient {
 
   /**
    * Helper to convert Blob to base64
+   * Works in both browser and Node.js environments
    */
   private async blobToBase64(blob: Blob): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
+    // Check if we're in a Node.js environment
+    if (typeof window === 'undefined') {
+      // Server-side: use Buffer
+      const arrayBuffer = await blob.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      const base64 = buffer.toString('base64');
+      // Determine media type
+      const mediaType = blob.type || 'image/jpeg';
+      return `data:${mediaType};base64,${base64}`;
+    } else {
+      // Browser: use FileReader
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    }
   }
 
   /**

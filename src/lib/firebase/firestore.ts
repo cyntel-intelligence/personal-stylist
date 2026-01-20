@@ -204,8 +204,25 @@ export const closetService = {
 
   async createItem(itemData: Omit<ClosetItem, "id" | "createdAt" | "updatedAt">): Promise<string> {
     const itemRef = doc(collection(ensureDb(), "closet_items"));
+
+    // Remove undefined values to prevent Firestore errors
+    const removeUndefined = (obj: any): any => {
+      if (Array.isArray(obj)) {
+        return obj.map(removeUndefined);
+      } else if (obj !== null && typeof obj === 'object') {
+        return Object.entries(obj).reduce((acc, [key, value]) => {
+          if (value !== undefined) {
+            acc[key] = removeUndefined(value);
+          }
+          return acc;
+        }, {} as any);
+      }
+      return obj;
+    };
+
+    const cleanedData = removeUndefined(itemData);
     const itemWithTimestamps = {
-      ...itemData,
+      ...cleanedData,
       wornCount: 0,
       associatedEvents: [],
       createdAt: serverTimestamp(),

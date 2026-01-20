@@ -31,10 +31,14 @@ type Props = {
 };
 
 export function BasicInfoStep({ initialData, onComplete, onBack }: Props) {
-  const [height, setHeight] = useState(initialData.height || 0);
+  // Convert initial height in inches to feet and inches
+  const initialHeightInches = initialData.height || 0;
+  const [feet, setFeet] = useState(Math.floor(initialHeightInches / 12));
+  const [inches, setInches] = useState(initialHeightInches % 12);
+
   const [tops, setTops] = useState(initialData.sizes?.tops || "");
-  const [bottoms, setBottoms] = useState(initialData.sizes?.bottoms || 0);
-  const [dress, setDress] = useState(initialData.sizes?.dress || 0);
+  const [bottoms, setBottoms] = useState(initialData.sizes?.bottoms?.toString() || "");
+  const [dress, setDress] = useState(initialData.sizes?.dress?.toString() || "");
   const [denim, setDenim] = useState(initialData.sizes?.denim || 0);
   const [bra, setBra] = useState(initialData.sizes?.bra || "");
   const [fitPreference, setFitPreference] = useState<"fitted" | "relaxed" | "oversized" | "standard">(
@@ -49,12 +53,19 @@ export function BasicInfoStep({ initialData, onComplete, onBack }: Props) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Convert feet and inches to total inches
+    const totalHeightInInches = (feet * 12) + inches;
+
+    // Parse dress and bottoms sizes - handle "00", "0", etc.
+    const dressNumber = dress === "00" ? 0 : parseInt(dress) || 0;
+    const bottomsNumber = bottoms === "00" ? 0 : parseInt(bottoms) || 0;
+
     onComplete({
-      height,
+      height: totalHeightInInches,
       sizes: {
         tops,
-        bottoms,
-        dress,
+        bottoms: bottomsNumber,
+        dress: dressNumber,
         denim,
         bra: bra || undefined,
       },
@@ -74,19 +85,37 @@ export function BasicInfoStep({ initialData, onComplete, onBack }: Props) {
         <h3 className="text-lg font-semibold">Your Measurements</h3>
 
         <div>
-          <Label htmlFor="height">Height (inches)</Label>
-          <Input
-            id="height"
-            type="number"
-            value={height || ""}
-            onChange={(e) => setHeight(Number(e.target.value))}
-            placeholder="e.g., 65 inches"
-            required
-            min="48"
-            max="84"
-          />
+          <Label>Height</Label>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="feet" className="text-sm text-gray-600">Feet</Label>
+              <Input
+                id="feet"
+                type="number"
+                value={feet || ""}
+                onChange={(e) => setFeet(Number(e.target.value))}
+                placeholder="5"
+                required
+                min="4"
+                max="7"
+              />
+            </div>
+            <div>
+              <Label htmlFor="inches" className="text-sm text-gray-600">Inches</Label>
+              <Input
+                id="inches"
+                type="number"
+                value={inches || ""}
+                onChange={(e) => setInches(Number(e.target.value))}
+                placeholder="6"
+                required
+                min="0"
+                max="11"
+              />
+            </div>
+          </div>
           <p className="text-xs text-gray-500 mt-1">
-            {height > 0 && `${Math.floor(height / 12)}'${height % 12}"`}
+            {feet > 0 && `${feet}'${inches}"`}
           </p>
         </div>
       </div>
@@ -118,30 +147,26 @@ export function BasicInfoStep({ initialData, onComplete, onBack }: Props) {
             <Label htmlFor="dress">Dress Size</Label>
             <Input
               id="dress"
-              type="number"
-              value={dress || ""}
-              onChange={(e) => setDress(Number(e.target.value))}
-              placeholder="e.g., 6"
+              type="text"
+              value={dress}
+              onChange={(e) => setDress(e.target.value)}
+              placeholder="e.g., 00, 0, 2, 4, 6"
               required
-              min="0"
-              max="30"
-              step="2"
             />
+            <p className="text-xs text-gray-500 mt-1">Enter 00, 0, 2, 4, 6, etc.</p>
           </div>
 
           <div>
             <Label htmlFor="bottoms">Bottoms Size</Label>
             <Input
               id="bottoms"
-              type="number"
-              value={bottoms || ""}
-              onChange={(e) => setBottoms(Number(e.target.value))}
-              placeholder="e.g., 8"
+              type="text"
+              value={bottoms}
+              onChange={(e) => setBottoms(e.target.value)}
+              placeholder="e.g., 00, 0, 2, 4, 6"
               required
-              min="0"
-              max="30"
-              step="2"
             />
+            <p className="text-xs text-gray-500 mt-1">Enter 00, 0, 2, 4, 6, etc.</p>
           </div>
 
           <div>

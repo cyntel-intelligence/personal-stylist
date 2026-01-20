@@ -39,6 +39,22 @@ const eventTypeOptions: { value: EventType; label: string; icon: string }[] = [
   { value: "other", label: "Other", icon: "📅" },
 ];
 
+// Helper function to safely convert Firestore Timestamp or Date to Date
+const toDate = (value: any): Date | undefined => {
+  if (!value) return undefined;
+  // Check if it's a Firestore Timestamp with toDate method
+  if (value.toDate && typeof value.toDate === 'function') {
+    return value.toDate();
+  }
+  // Check if it's already a Date
+  if (value instanceof Date) {
+    return value;
+  }
+  // Try to parse as date string or number
+  const date = new Date(value);
+  return isNaN(date.getTime()) ? undefined : date;
+};
+
 export function EventForm({ initialData, onSubmit, onCancel, loading }: Props) {
   const [eventType, setEventType] = useState<EventType>(initialData?.eventType || "cocktail");
   const [customEventType, setCustomEventType] = useState(initialData?.customEventType || "");
@@ -47,27 +63,23 @@ export function EventForm({ initialData, onSubmit, onCancel, loading }: Props) {
   const [state, setState] = useState(initialData?.location?.state || "");
   const [venue, setVenue] = useState(initialData?.location?.venue || "");
   const [eventDate, setEventDate] = useState<Date | undefined>(
-    initialData?.dateTime ? new Date(initialData.dateTime as any) : undefined
+    toDate(initialData?.dateTime)
   );
   const [userRole, setUserRole] = useState(initialData?.userRole || "");
   const [activityLevel, setActivityLevel] = useState<"sedentary" | "moderate" | "active">(
     initialData?.activityLevel || "moderate"
   );
   const [shippingDeadline, setShippingDeadline] = useState<Date | undefined>(
-    initialData?.shippingDeadline ? new Date(initialData.shippingDeadline as any) : undefined
+    toDate(initialData?.shippingDeadline)
   );
   const [preferRewear, setPreferRewear] = useState(initialData?.requirements?.preferRewear ?? false);
+  const [shopOnlyMode, setShopOnlyMode] = useState(initialData?.requirements?.shopOnlyMode ?? false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!eventDate) {
       alert("Please select an event date");
-      return;
-    }
-
-    if (!shippingDeadline) {
-      alert("Please select a shipping deadline");
       return;
     }
 
@@ -89,12 +101,11 @@ export function EventForm({ initialData, onSubmit, onCancel, loading }: Props) {
         state,
       },
       dateTime: eventDate as any,
-      userRole,
       activityLevel,
-      shippingDeadline: shippingDeadline as any,
       requirements: {
         mustUseClosetItems: [],
         preferRewear,
+        shopOnlyMode,
       },
       recommendationsGenerated: false,
       recommendationIds: [],
@@ -110,7 +121,34 @@ export function EventForm({ initialData, onSubmit, onCancel, loading }: Props) {
       formData.location.venue = venue;
     }
 
-    onSubmit(formData);
+    if (shippingDeadline) {
+      formData.shippingDeadline = shippingDeadline;
+    }
+
+    if (userRole) {
+      formData.userRole = userRole;
+    }
+
+    // Remove undefined values to prevent Firestore errors
+    const cleanFormData = Object.entries(formData).reduce((acc, [key, value]) => {
+      if (value !== undefined) {
+        // Check if it's a plain object (not Date, Array, or other special objects)
+        if (typeof value === 'object' && value !== null && !Array.isArray(value) && !(value instanceof Date)) {
+          // Recursively clean nested objects
+          acc[key] = Object.entries(value).reduce((nestedAcc, [nestedKey, nestedValue]) => {
+            if (nestedValue !== undefined) {
+              nestedAcc[nestedKey] = nestedValue;
+            }
+            return nestedAcc;
+          }, {} as any);
+        } else {
+          acc[key] = value;
+        }
+      }
+      return acc;
+    }, {} as any);
+
+    onSubmit(cleanFormData);
   };
 
   return (
@@ -242,11 +280,11 @@ export function EventForm({ initialData, onSubmit, onCancel, loading }: Props) {
       {/* Your Role */}
       <div className="space-y-4">
         <div>
-          <h3 className="text-lg font-semibold">Your Role</h3>
+          <h3 className="text-lg font-semibold">Your Role (Optional)</h3>
           <p className="text-sm text-gray-600">What's your role at this event?</p>
         </div>
 
-        <Select value={userRole} onValueChange={setUserRole} required>
+        <Select value={userRole} onValueChange={setUserRole}>
           <SelectTrigger>
             <SelectValue placeholder="Select your role" />
           </SelectTrigger>
@@ -293,7 +331,7 @@ export function EventForm({ initialData, onSubmit, onCancel, loading }: Props) {
       {/* Shipping Deadline */}
       <div className="space-y-4">
         <div>
-          <h3 className="text-lg font-semibold">Shipping Deadline</h3>
+          <h3 className="text-lg font-semibold">Shipping Deadline (Optional)</h3>
           <p className="text-sm text-gray-600">Latest date to receive items by</p>
         </div>
 
@@ -307,7 +345,6 @@ export function EventForm({ initialData, onSubmit, onCancel, loading }: Props) {
               const date = e.target.value ? new Date(e.target.value + "T00:00:00") : undefined;
               setShippingDeadline(date);
             }}
-            required
           />
         </div>
       </div>
@@ -323,7 +360,32 @@ export function EventForm({ initialData, onSubmit, onCancel, loading }: Props) {
             <Label>Prefer to rewear existing items</Label>
             <p className="text-xs text-gray-500">Prioritize items from your closet</p>
           </div>
-          <Switch checked={preferRewear} onCheckedChange={setPreferRewear} />
+          <Switch
+            checked={preferRewear}
+            onCheckedChange={(checked) => {
+              setPreferRewear(checked);
+              if (checked) setShopOnlyMode(false);
+            }}
+            disabled={shopOnlyMode}
+          />
+        </div>
+
+        <div className={cn(
+          "flex items-center justify-between p-4 border rounded-lg",
+          preferRewear && "opacity-50"
+        )}>
+          <div>
+            <Label>Shop Only Mode</Label>
+            <p className="text-xs text-gray-500">Get outfits using only new items to purchase</p>
+          </div>
+          <Switch
+            checked={shopOnlyMode}
+            onCheckedChange={(checked) => {
+              setShopOnlyMode(checked);
+              if (checked) setPreferRewear(false);
+            }}
+            disabled={preferRewear}
+          />
         </div>
       </div>
 

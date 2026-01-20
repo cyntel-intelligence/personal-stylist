@@ -5,7 +5,10 @@ import { ClosetItem, ItemCategory } from "@/types/closet";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Trash2, Star } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Trash2, Star, Edit } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -18,6 +21,7 @@ type Props = {
   items: ClosetItem[];
   onDelete?: (itemId: string) => void;
   onToggleFavorite?: (itemId: string) => void;
+  onUpdate?: (itemId: string, data: Partial<ClosetItem>) => void;
   loading?: boolean;
 };
 
@@ -29,8 +33,40 @@ const categoryIcons: Record<ItemCategory, string> = {
   jewelry: "💎",
 };
 
-export function ClosetGrid({ items, onDelete, onToggleFavorite, loading }: Props) {
+export function ClosetGrid({ items, onDelete, onToggleFavorite, onUpdate, loading }: Props) {
   const [selectedItem, setSelectedItem] = useState<ClosetItem | null>(null);
+  const [editingItem, setEditingItem] = useState<ClosetItem | null>(null);
+  const [editBrand, setEditBrand] = useState("");
+  const [editPrice, setEditPrice] = useState("");
+  const [editRetailer, setEditRetailer] = useState("");
+  const [editPreferToRewear, setEditPreferToRewear] = useState(false);
+  const [editRefuseToRewear, setEditRefuseToRewear] = useState(false);
+
+  const handleOpenEdit = (item: ClosetItem) => {
+    setEditingItem(item);
+    setEditBrand(item.brand || "");
+    setEditPrice(item.price?.toString() || "");
+    setEditRetailer(item.retailer || "");
+    setEditPreferToRewear(item.tags.preferToRewear);
+    setEditRefuseToRewear(item.tags.refuseToRewear);
+  };
+
+  const handleSaveEdit = () => {
+    if (!editingItem || !onUpdate) return;
+
+    onUpdate(editingItem.id, {
+      brand: editBrand || undefined,
+      price: editPrice ? parseFloat(editPrice) : undefined,
+      retailer: editRetailer || undefined,
+      tags: {
+        ...editingItem.tags,
+        preferToRewear: editPreferToRewear,
+        refuseToRewear: editRefuseToRewear,
+      },
+    });
+
+    setEditingItem(null);
+  };
 
   if (loading) {
     return (
@@ -69,9 +105,10 @@ export function ClosetGrid({ items, onDelete, onToggleFavorite, loading }: Props
           >
             <div className="aspect-square relative bg-gray-100">
               <img
-                src={item.images.thumbnail}
+                src={item.images.thumbnail || item.images.original}
                 alt={`${item.category} item`}
                 className="w-full h-full object-cover"
+                loading="lazy"
               />
 
               {/* Category Badge */}
@@ -151,11 +188,11 @@ export function ClosetGrid({ items, onDelete, onToggleFavorite, loading }: Props
               </DialogHeader>
 
               <div className="grid md:grid-cols-2 gap-6">
-                <div>
+                <div className="flex items-center justify-center bg-gray-50 rounded-lg">
                   <img
                     src={selectedItem.images.original}
                     alt={`${selectedItem.category} item`}
-                    className="w-full rounded-lg"
+                    className="w-full h-auto max-h-[500px] object-contain rounded-lg"
                   />
                 </div>
 
@@ -237,7 +274,18 @@ export function ClosetGrid({ items, onDelete, onToggleFavorite, loading }: Props
                     </div>
                   )}
 
-                  <div className="pt-4">
+                  <div className="pt-4 space-y-2">
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => {
+                        handleOpenEdit(selectedItem);
+                        setSelectedItem(null);
+                      }}
+                    >
+                      <Edit className="mr-2 h-4 w-4" />
+                      Edit Item
+                    </Button>
                     <Button
                       variant="outline"
                       className="w-full"
@@ -254,6 +302,88 @@ export function ClosetGrid({ items, onDelete, onToggleFavorite, loading }: Props
               </div>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Item Dialog */}
+      <Dialog open={!!editingItem} onOpenChange={(open) => !open && setEditingItem(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Item</DialogTitle>
+            <DialogDescription>
+              Update your item details and preferences
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="edit-brand">Brand</Label>
+              <Input
+                id="edit-brand"
+                value={editBrand}
+                onChange={(e) => setEditBrand(e.target.value)}
+                placeholder="e.g., Zara, Reformation"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="edit-retailer">Retailer</Label>
+              <Input
+                id="edit-retailer"
+                value={editRetailer}
+                onChange={(e) => setEditRetailer(e.target.value)}
+                placeholder="e.g., Nordstrom, ASOS"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="edit-price">Price</Label>
+              <Input
+                id="edit-price"
+                type="number"
+                step="0.01"
+                min="0"
+                value={editPrice}
+                onChange={(e) => setEditPrice(e.target.value)}
+                placeholder="e.g., 89.99"
+              />
+            </div>
+
+            <div className="space-y-3 pt-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="prefer-rewear">Favorite Item</Label>
+                  <p className="text-sm text-gray-600">Mark as a preferred item to wear</p>
+                </div>
+                <Switch
+                  id="prefer-rewear"
+                  checked={editPreferToRewear}
+                  onCheckedChange={setEditPreferToRewear}
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="refuse-rewear">Never Wear Again</Label>
+                  <p className="text-sm text-gray-600">Mark to exclude from recommendations</p>
+                </div>
+                <Switch
+                  id="refuse-rewear"
+                  checked={editRefuseToRewear}
+                  onCheckedChange={setEditRefuseToRewear}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setEditingItem(null)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveEdit}>
+              Save Changes
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </>

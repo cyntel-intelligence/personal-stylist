@@ -19,16 +19,23 @@ export interface Recommendation {
 
   // Pricing
   pricing: {
-    totalPrice: number;
-    breakdown: {
-      dress: number;
-      shoes: number;
-      bag: number;
-      jewelry: number;
+    // Legacy format (for backward compatibility)
+    totalPrice?: number;
+    breakdown?: {
+      dress?: number;
+      shoes?: number;
+      bag?: number;
+      jewelry?: number;
       outerwear?: number;
     };
-    hasLowerPriceAlternatives: boolean;
-    hasHigherPriceAlternatives: boolean;
+    hasLowerPriceAlternatives?: boolean;
+    hasHigherPriceAlternatives?: boolean;
+
+    // New format with alternatives
+    primaryTotal?: number;  // Pricing for primary recommendations
+    dynamicBreakdown?: Record<ItemCategory, number>;  // Dynamic categories
+    minTotal?: number;   // Cheapest alternative combination
+    maxTotal?: number;   // Most expensive alternative combination
   };
 
   // User Feedback
@@ -40,11 +47,39 @@ export interface Recommendation {
   version: number; // for tracking recommendation algorithm versions
 }
 
+// Define all supported item categories
+export type ItemCategory =
+  | 'dress'
+  | 'tops'
+  | 'bottoms'
+  | 'jackets'
+  | 'shoes'
+  | 'bags'
+  | 'jewelry'
+  | 'accessories'
+  | 'outerwear';
+
+// Each category can have multiple alternatives
+export interface OutfitItemWithAlternatives {
+  category: ItemCategory;
+  primary: OutfitItem;           // The AI's top recommendation
+  alternatives: OutfitItem[];    // 1-2 additional options
+  reason: string;                // Why this category is included
+}
+
 export interface CompleteOutfit {
-  dress: OutfitItem;
-  shoes: OutfitItem;
-  bag: OutfitItem;
-  jewelry: JewelrySet;
+  // New flexible structure with alternatives
+  items?: OutfitItemWithAlternatives[];  // Dynamic list of item categories
+
+  // Special handling for dress vs separates
+  hasDressOption?: boolean;
+  hasSeparatesOption?: boolean;   // top + bottom
+
+  // Legacy fixed fields (for backward compatibility)
+  dress?: OutfitItem;
+  shoes?: OutfitItem;
+  bag?: OutfitItem;
+  jewelry?: JewelrySet;
   outerwear?: OutfitItem;
 }
 

@@ -1,70 +1,165 @@
 import { NextRequest, NextResponse } from "next/server";
 import { claudeClient, CLAUDE_MODELS } from "@/lib/ai/claude-client";
 import { buildItemAnalysisPrompt } from "@/lib/ai/prompts/analysis";
+import { verifyAuth, verifyOwnership } from "@/lib/middleware/auth";
+import { checkRateLimit, RATE_LIMITS } from "@/lib/middleware/rateLimit";
+import { AnalyzeClosetItemRequestSchema, validateFirebaseStorageUrl } from "@/lib/validation/schemas";
+import { trackAPIUsage, AIOperationType, checkCostThreshold } from "@/lib/services/usage-tracking";
 
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+
   try {
+    // 1. AUTHENTICATE USER
+    const authResult = await verifyAuth(request);
+    if (authResult.error) return authResult.error;
+    const authenticatedUserId = authResult.user.uid;
+
+    // 2. PARSE AND VALIDATE REQUEST BODY
     const body = await request.json();
-    const { imageUrl } = body;
 
-    if (!imageUrl) {
-      return NextResponse.json({ error: "Missing imageUrl" }, { status: 400 });
-    }
-
-    // Check if API key is configured
-    if (!process.env.ANTHROPIC_API_KEY) {
-      console.warn("Anthropic API key not configured, returning placeholder analysis");
-      return NextResponse.json({
-        analysis: {
-          category: "dress",
-          subcategory: "",
-          color: [],
-          style: [],
-          pattern: "",
-          occasion: [],
-          season: [],
-          keyFeatures: [],
+    let validatedData;
+    try {
+      validatedData = AnalyzeClosetItemRequestSchema.parse(body);
+    } catch (validationError: any) {
+      return NextResponse.json(
+        {
+          error: "Invalid request data",
+          details: validationError.errors
         },
-        note: "AI analysis disabled - API key not configured"
-      });
+        { status: 400 }
+      );
     }
 
-    // Build prompt
+    const { userId, imageUrl } = validatedData;
+
+    // 3. VERIFY USER OWNS THE RESOURCE
+    const ownershipCheck = verifyOwnership(authenticatedUserId, userId);
+    if (ownershipCheck.error) return ownershipCheck.error;
+
+    // 4. VALIDATE IMAGE URL (PREVENT SSRF)
+    const urlValidation = validateFirebaseStorageUrl(imageUrl);
+    if (!urlValidation.valid) {
+      return NextResponse.json(
+        { error: "Invalid image URL", message: urlValidation.error },
+        { status: 400 }
+      );
+    }
+
+    // 5. CHECK RATE LIMIT
+    const rateLimitResult = await checkRateLimit(
+      userId,
+      'closet_analysis',
+      RATE_LIMITS.AI_CLOSET_ANALYSIS
+    );
+    if (rateLimitResult.error) return rateLimitResult.error;
+
+    // 6. CHECK COST THRESHOLD
+    const costCheck = await checkCostThreshold(userId, 10.0);
+    if (costCheck.exceeded) {
+      return NextResponse.json(
+        {
+          error: "Monthly cost limit exceeded",
+          message: `You have reached your monthly AI usage limit of $${costCheck.threshold}. Current usage: $${costCheck.currentCost.toFixed(2)}`,
+        },
+        { status: 402 }
+      );
+    }
+
+    // 7. CHECK IF API KEY IS CONFIGURED
+    if (!process.env.ANTHROPIC_API_KEY) {
+      console.warn("Anthropic API key not configured");
+      return NextResponse.json(
+        {
+          error: "AI service not configured",
+          message: "Please add ANTHROPIC_API_KEY to your environment variables"
+        },
+        { status: 503 }
+      );
+    }
+
+    // 8. BUILD PROMPT
     const prompt = buildItemAnalysisPrompt();
 
-    // Call Claude with image
+    // 9. CALL CLAUDE WITH IMAGE (WITH TIMEOUT)
     console.log("Analyzing closet item with Claude Vision...");
-    const response = await claudeClient.sendMessageWithImages(
-      prompt,
-      [imageUrl],
-      CLAUDE_MODELS.SONNET,
-      2000
-    );
+    let response: string;
+    let tokenUsage = { inputTokens: 0, outputTokens: 0 };
 
-    // Parse response
+    try {
+      const aiCallPromise = claudeClient.sendMessageWithImages(
+        prompt,
+        [imageUrl],
+        CLAUDE_MODELS.SONNET,
+        2000
+      );
+
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('AI request timeout')), 60000) // 60 second timeout
+      );
+
+      response = await Promise.race([aiCallPromise, timeoutPromise]) as string;
+
+      // Estimate token usage
+      tokenUsage = {
+        inputTokens: claudeClient.estimateTokens(prompt) + 1000, // Add ~1000 for image
+        outputTokens: claudeClient.estimateTokens(response),
+      };
+    } catch (aiError: any) {
+      console.error("Claude API error:", aiError);
+
+      // Track failed API call
+      await trackAPIUsage(
+        userId,
+        AIOperationType.CLOSET_ANALYSIS,
+        { inputTokens: 0, outputTokens: 0, model: CLAUDE_MODELS.SONNET },
+        false,
+        { requestDuration: Date.now() - startTime },
+        aiError.message
+      );
+
+      return NextResponse.json(
+        {
+          error: "AI service error",
+          message: "Failed to analyze item. Please try again.",
+        },
+        { status: 500 }
+      );
+    }
+
+    // 10. PARSE RESPONSE
     let analysis;
     try {
       const cleaned = response.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
       analysis = JSON.parse(cleaned);
     } catch (parseError) {
       console.error("Failed to parse AI analysis:", parseError);
-      console.log("Raw response:", response);
+      console.log("Raw response:", response.substring(0, 500));
 
-      // Return placeholder on parse error
-      return NextResponse.json({
-        analysis: {
-          category: "dress",
-          subcategory: "",
-          color: ["unknown"],
-          style: ["casual"],
-          pattern: "solid",
-          occasion: ["casual"],
-          season: ["all-season"],
-          keyFeatures: [],
-        },
-        note: "AI analysis failed, using placeholder"
-      });
+      // Track failed parsing
+      await trackAPIUsage(
+        userId,
+        AIOperationType.CLOSET_ANALYSIS,
+        { ...tokenUsage, model: CLAUDE_MODELS.SONNET },
+        false,
+        { requestDuration: Date.now() - startTime },
+        "Failed to parse AI response"
+      );
+
+      return NextResponse.json(
+        { error: "Failed to parse AI response", message: "Invalid response format" },
+        { status: 500 }
+      );
     }
+
+    // 11. TRACK SUCCESSFUL API USAGE
+    await trackAPIUsage(
+      userId,
+      AIOperationType.CLOSET_ANALYSIS,
+      { ...tokenUsage, model: CLAUDE_MODELS.SONNET },
+      true,
+      { requestDuration: Date.now() - startTime }
+    );
 
     return NextResponse.json({
       analysis: {
@@ -76,25 +171,25 @@ export async function POST(request: NextRequest) {
         occasion: analysis.occasion || [],
         season: analysis.season || [],
         keyFeatures: analysis.keyFeatures || [],
-      }
+      },
+      usage: {
+        tokensUsed: tokenUsage.inputTokens + tokenUsage.outputTokens,
+        estimatedCost: (tokenUsage.inputTokens / 1_000_000 * 3.0) + (tokenUsage.outputTokens / 1_000_000 * 15.0),
+      },
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error analyzing closet item:", error);
 
-    // Return placeholder instead of erroring
-    return NextResponse.json({
-      analysis: {
-        category: "dress",
-        subcategory: "",
-        color: [],
-        style: [],
-        pattern: "",
-        occasion: [],
-        season: [],
-        keyFeatures: [],
+    return NextResponse.json(
+      {
+        error: "Failed to analyze item",
+        message: "An unexpected error occurred. Please try again.",
+        ...(process.env.NODE_ENV === 'development' && {
+          details: error.message
+        }),
       },
-      note: "AI analysis failed"
-    });
+      { status: 500 }
+    );
   }
 }

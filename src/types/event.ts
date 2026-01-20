@@ -18,7 +18,7 @@ export interface Event {
   dateTime: Timestamp;
 
   // Context
-  userRole: string; // "guest", "mother-of-bride", "attendee", etc.
+  userRole?: string; // "guest", "mother-of-bride", "attendee", etc.
   activityLevel: "sedentary" | "moderate" | "active";
 
   // Weather Data (auto-fetched)
@@ -30,18 +30,27 @@ export interface Event {
   };
 
   // Shipping Constraints
-  shippingDeadline: Timestamp;
+  shippingDeadline?: Timestamp;
 
   // Requirements
   requirements: {
     mustUseClosetItems: string[]; // closet item IDs
     preferRewear: boolean;
+    shopOnlyMode: boolean;
   };
 
   // Recommendation State
   recommendationsGenerated: boolean;
   recommendationIds: string[]; // references to recommendations collection
   selectedRecommendationId?: string;
+
+  // NEW: Track user's selected alternatives
+  selectedOutfit?: {
+    recommendationId: string;
+    mode: 'dress' | 'separates';
+    selectedAlternatives: Record<string, number>;  // category -> index (0=primary, 1=alt1, 2=alt2)
+    totalPrice: number;
+  };
 
   // Status
   status: EventStatus;

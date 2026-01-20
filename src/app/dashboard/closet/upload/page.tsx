@@ -7,6 +7,7 @@ import { UploadForm } from "@/components/closet/UploadForm";
 import { ClosetItemUpload } from "@/types/closet";
 import { storageService } from "@/lib/firebase/storage";
 import { closetService } from "@/lib/firebase/firestore";
+import { authenticatedPost } from "@/lib/api/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 
@@ -42,21 +43,23 @@ export default function ClosetUploadPage() {
       };
 
       try {
-        const analysisResponse = await fetch("/api/closet/analyze", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ imageUrl: imageUrls.optimized }),
+        // Use authenticated API helper
+        const analysisData = await authenticatedPost("/api/closet/analyze", {
+          userId: user.uid,
+          imageUrl: imageUrls.optimized,
+          category: data.category,
         });
 
-        if (analysisResponse.ok) {
-          const analysisData = await analysisResponse.json();
-          aiAnalysis = analysisData.analysis;
-          toast.success("Image analyzed!");
-        } else {
-          console.warn("AI analysis failed, using placeholder");
+        aiAnalysis = analysisData.analysis;
+        toast.success("Image analyzed!");
+
+        // Show usage info if available
+        if (analysisData.usage) {
+          console.log(`AI Usage: ${analysisData.usage.tokensUsed} tokens, ~$${analysisData.usage.estimatedCost.toFixed(4)}`);
         }
       } catch (analysisError) {
         console.error("Error calling analysis API:", analysisError);
+        toast.warning("AI analysis unavailable, using manual entry");
         // Continue with placeholder data
       }
 

@@ -127,7 +127,7 @@ export const storageService = {
       const originalUrl = await this.uploadFile(file, originalPath);
 
       // Create and upload thumbnail (handled client-side)
-      const thumbnail = await this.createThumbnail(file, 200, 200);
+      const thumbnail = await this.createThumbnail(file, 600, 600);
       const thumbnailPath = `${basePath}/thumbnails/${filename}`;
       const thumbnailUrl = await this.uploadBlob(thumbnail, thumbnailPath);
 
